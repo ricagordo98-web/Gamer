@@ -1,0 +1,217 @@
+﻿@page "/settings"
+@inject IGamerApi Api
+@inject AuthSession Session
+@inject ServerSettings Server
+@inject GameLibrary Library
+@inject ToastService Toasts
+
+<header class="page-header"><h1>Definições</h1></header>
+
+<section class="card form">
+    <h3>Servidor</h3>
+    <p class="muted">Endereço da API Gamer. No telemóvel usa o IP do PC, por exemplo http://192.168.1.10:5199.</p>
+    <input class="input" @bind="_serverUrl" autocapitalize="none" />
+    <div class="sheet-actions">
+        <button class="btn" @onclick="TestAsync">Testar</button>
+        <button class="btn btn-primary" @onclick="SaveServerAsync">Guardar</button>
+    </div>
+</section>
+
+<section class="card form">
+    <h3>Importar do Excel</h3>
+    <p class="muted">Escolhe o ficheiro .xlsx (colunas Jogo, Consola, A Jogar, Terminado, Deck). Jogos repetidos são ignorados.</p>
+    <label class="btn upload">
+        <Icon Name="upload" Size="18" /> @(_importing ? "A importar…" : "Escolher ficheiro")
+        <InputFile OnChange="ImportAsync" accept=".xlsx" disabled="@_importing" />
+    </label>
+
+    @if (_result is not null)
+    {
+        <div class="result">
+            <strong>@_result.Imported importados</strong>, @_result.Skipped ignorados.
+            @if (_result.Duplicates.Count > 0)
+            {
+                <ul>
+                    @foreach (string duplicate in _result.Duplicates)
+                    {
+                        <li>@duplicate</li>
+                    }
+                </ul>
+            }
+        </div>
+    }
+</section>
+
+<section class="card form">
+    <h3>Steam</h3>
+    <p class="muted">Precisas de uma API key (steamcommunity.com/dev/apikey) e do teu SteamID64 (17 dígitos). O perfil e os detalhes dos jogos têm de estar públicos.</p>
+    <input class="input" type="password" placeholder="@(_steam?.ApiKeyConfigured == true ? "API key guardada (deixa vazio para manter)" : "API key")" @bind="_apiKey" autocomplete="off" />
+    <input class="input" placeholder="SteamID64" @bind="_steamId" inputmode="numeric" />
+    <label class="muted">Atualizar preços de X em X horas (0 = desligado)
+        <input class="input" type="number" min="0" max="168" @bind="_refreshHours" />
+    </label>
+    <div class="sheet-actions">
+        <button class="btn" @onclick="SyncSteamAsync" disabled="@_syncing">@(_syncing ? "A sincronizar…" : "Sincronizar agora")</button>
+        <button class="btn btn-primary" @onclick="SaveSteamAsync">Guardar</button>
+    </div>
+</section>
+
+<section class="card form">
+    <h3>Lojas</h3>
+    <p class="muted">Lojas usadas na comparação de preços. Podes desativar uma ou mudar o endereço (por exemplo outra região).</p>
+    @foreach (StoreEdit store in _stores)
+    {
+        <div class="store-row">
+            <label class="store-toggle"><input type="checkbox" @bind="store.IsEnabled" /> <strong>@store.Name</strong></label>
+            <input class="input" @bind="store.BaseUrl" autocapitalize="none" />
+            <button class="btn" @onclick="() => SaveStoreAsync(store)">Guardar</button>
+        </div>
+    }
+</section>
+
+<section class="card form">
+    <h3>Sessão</h3>
+    <button class="btn btn-danger" @onclick="Session.SignOutAsync"><Icon Name="logout" Size="18" /> Terminar sessão</button>
+</section>
+
+@code {
+    private const long MaxImportBytes = 10 * 1024 * 1024;
+
+    private string _serverUrl = string.Empty;
+    private bool _importing;
+    private ImportResultDto? _result;
+
+    private SteamSettingsDto? _steam;
+    private string _apiKey = string.Empty;
+    private string _steamId = string.Empty;
+    private int _refreshHours = 12;
+    private bool _syncing;
+    private List<StoreEdit> _stores = [];
+
+    private sealed class StoreEdit(StoreDto store)
+    {
+        public int Id { get; } = store.Id;
+        public string Name { get; } = store.Name;
+        public string BaseUrl { get; set; } = store.BaseUrl;
+        public bool IsEnabled { get; set; } = store.IsEnabled;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _serverUrl = await Server.GetBaseUrlAsync();
+        try
+        {
+            _steam = await Api.GetSteamSettingsAsync(CancellationToken.None);
+            _steamId = _steam.SteamId;
+            _refreshHours = _steam.RefreshHours;
+            _stores = (await Api.GetStoresAsync(CancellationToken.None)).Select(s => new StoreEdit(s)).ToList();
+        }
+        catch (ApiException)
+        {
+        }
+    }
+
+    private async Task SaveSteamAsync()
+    {
+        try
+        {
+            _steam = await Api.SaveSteamSettingsAsync(new SteamSettingsRequest(_apiKey, _steamId, _refreshHours), CancellationToken.None);
+            _apiKey = string.Empty;
+            Toasts.Success("Definições Steam guardadas.");
+        }
+        catch (ApiException exception)
+        {
+            Toasts.Error(exception.Message);
+        }
+    }
+
+    private async Task SyncSteamAsync()
+    {
+        _syncing = true;
+        try
+        {
+            SteamSyncResultDto result = await Api.SyncSteamAsync(CancellationToken.None);
+            Toasts.Success($"{result.LibraryCount} jogos e {result.WishlistCount} na wishlist.");
+        }
+        catch (ApiException exception)
+        {
+            Toasts.Error(exception.Message);
+        }
+        finally
+        {
+            _syncing = false;
+        }
+    }
+
+    private async Task SaveStoreAsync(StoreEdit store)
+    {
+        try
+        {
+            StoreDto saved = await Api.UpdateStoreAsync(store.Id, new StoreUpdateRequest(store.IsEnabled, store.BaseUrl), CancellationToken.None);
+            store.BaseUrl = saved.BaseUrl;
+            Toasts.Success($"{store.Name} guardada.");
+        }
+        catch (ApiException exception)
+        {
+            Toasts.Error(exception.Message);
+        }
+    }
+
+    private async Task SaveServerAsync()
+    {
+        if (await Server.TrySetBaseUrlAsync(_serverUrl))
+        {
+            _serverUrl = await Server.GetBaseUrlAsync();
+            Toasts.Success("Servidor guardado.");
+        }
+        else
+        {
+            Toasts.Error("O endereço do servidor não é válido.");
+        }
+    }
+
+    private async Task TestAsync()
+    {
+        if (!await Server.TrySetBaseUrlAsync(_serverUrl))
+        {
+            Toasts.Error("O endereço do servidor não é válido.");
+            return;
+        }
+
+        if (await Api.PingAsync(CancellationToken.None))
+        {
+            Toasts.Success("Ligação ao servidor OK.");
+        }
+        else
+        {
+            Toasts.Error("Não foi possível contactar o servidor.");
+        }
+    }
+
+    private async Task ImportAsync(InputFileChangeEventArgs args)
+    {
+        _importing = true;
+        _result = null;
+        try
+        {
+            await using MemoryStream buffer = new();
+            await using (Stream upload = args.File.OpenReadStream(MaxImportBytes))
+            {
+                await upload.CopyToAsync(buffer);
+            }
+
+            buffer.Position = 0;
+            _result = await Api.ImportAsync(buffer, args.File.Name, CancellationToken.None);
+            await Library.ReloadAsync(CancellationToken.None);
+            Toasts.Success($"{_result.Imported} jogos importados.");
+        }
+        catch (Exception exception) when (exception is ApiException or IOException)
+        {
+            Toasts.Error(exception.Message);
+        }
+        finally
+        {
+            _importing = false;
+        }
+    }
+}

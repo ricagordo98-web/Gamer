@@ -1,0 +1,151 @@
+@page "/deals"
+@inject IGamerApi Api
+@inject ToastService Toasts
+
+<header class="page-header">
+    <h1>Ofertas <small>@_deals.Count</small></h1>
+    <button class="btn" @onclick="RefreshAsync" disabled="@_refreshing">
+        <Icon Name="refresh" Size="18" /> @(_refreshing ? "A atualizar…" : "Atualizar preços")
+    </button>
+</header>
+
+<form class="search deal-search" @onsubmit="SearchAsync">
+    <Icon Name="search" Size="18" />
+    <input type="search" placeholder="Procurar preços de um jogo…" @bind="_query" />
+    <button class="btn btn-primary" type="submit" disabled="@_searching">@(_searching ? "A procurar…" : "Procurar")</button>
+</form>
+
+@if (_result is not null)
+{
+    <h3 class="section-title">Resultado da pesquisa</h3>
+    <DealCard Deal="_result" OnTrack="TrackResultAsync" />
+}
+
+<h3 class="section-title">A acompanhar</h3>
+@if (_loading)
+{
+    <div class="empty"><div class="spinner"></div><p>A carregar…</p></div>
+}
+else if (_error is not null)
+{
+    <div class="empty">
+        <p>@_error</p>
+        <button class="btn btn-primary" @onclick="LoadAsync">Tentar de novo</button>
+    </div>
+}
+else if (_deals.Count == 0)
+{
+    <div class="empty"><p>Sincroniza a wishlist Steam nas Definições ou pesquisa um jogo e carrega em “Acompanhar”.</p></div>
+}
+else
+{
+    @foreach (DealDto deal in _deals)
+    {
+        <DealCard Deal="deal" OnUntrack="() => UntrackAsync(deal)" />
+    }
+}
+
+@code {
+    private List<DealDto> _deals = [];
+    private DealDto? _result;
+    private string _query = string.Empty;
+    private string? _error;
+    private bool _loading = true;
+    private bool _searching;
+    private bool _refreshing;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+        try
+        {
+            _deals = (await Api.GetDealsAsync(CancellationToken.None)).ToList();
+        }
+        catch (ApiException exception)
+        {
+            _error = exception.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task SearchAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_query))
+        {
+            return;
+        }
+
+        _searching = true;
+        try
+        {
+            _result = await Api.SearchDealAsync(_query.Trim(), CancellationToken.None);
+        }
+        catch (ApiException exception)
+        {
+            Toasts.Error(exception.Message);
+        }
+        finally
+        {
+            _searching = false;
+        }
+    }
+
+    private async Task TrackResultAsync()
+    {
+        try
+        {
+            await Api.TrackGameAsync(_query.Trim(), CancellationToken.None);
+            _result = null;
+            await LoadAsync();
+            Toasts.Success("Jogo adicionado ao acompanhamento.");
+        }
+        catch (ApiException exception)
+        {
+            Toasts.Error(exception.Message);
+        }
+    }
+
+    private async Task UntrackAsync(DealDto deal)
+    {
+        try
+        {
+            await Api.UntrackGameAsync(deal.TrackedId!.Value, CancellationToken.None);
+            _deals.Remove(deal);
+        }
+        catch (ApiException exception)
+        {
+            Toasts.Error(exception.Message);
+        }
+    }
+
+    private async Task RefreshAsync()
+    {
+        _refreshing = true;
+        try
+        {
+            RefreshStatusDto status = await Api.RefreshDealsAsync(CancellationToken.None);
+            Toasts.Success("Atualização iniciada, pode demorar uns minutos.");
+            while (status.Running)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(5));
+                status = await Api.GetRefreshStatusAsync(CancellationToken.None);
+            }
+
+            await LoadAsync();
+        }
+        catch (ApiException exception)
+        {
+            Toasts.Error(exception.Message);
+        }
+        finally
+        {
+            _refreshing = false;
+        }
+    }
+}

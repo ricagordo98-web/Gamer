@@ -1,0 +1,63 @@
+﻿@inherits LayoutComponentBase
+@implements IDisposable
+@inject AuthSession Session
+@inject GameLibrary Library
+@inject NavigationManager Navigation
+
+@if (_ready && Session.IsAuthenticated)
+{
+    <div class="app">
+        <aside class="sidebar">
+            <div class="brand"><Logo Size="36" /><span>Gamer</span></div>
+            <nav>
+                <NavLink class="nav-item" href="" Match="NavLinkMatch.All"><Icon Name="dashboard" /> Painel</NavLink>
+                <NavLink class="nav-item" href="games"><Icon Name="games" /> Jogos</NavLink>
+                <NavLink class="nav-item" href="deals"><Icon Name="tag" /> Ofertas</NavLink>
+                <NavLink class="nav-item" href="steam"><Icon Name="library" /> Steam</NavLink>
+                <NavLink class="nav-item" href="settings"><Icon Name="settings" /> Definições</NavLink>
+            </nav>
+        </aside>
+
+        <main class="main">@Body</main>
+
+        <nav class="tabbar">
+            <NavLink class="tab" href="" Match="NavLinkMatch.All"><Icon Name="dashboard" Size="22" /><span>Painel</span></NavLink>
+            <NavLink class="tab" href="games"><Icon Name="games" Size="22" /><span>Jogos</span></NavLink>
+            <NavLink class="tab" href="deals"><Icon Name="tag" Size="22" /><span>Ofertas</span></NavLink>
+            <NavLink class="tab" href="steam"><Icon Name="library" Size="22" /><span>Steam</span></NavLink>
+            <NavLink class="tab" href="settings"><Icon Name="settings" Size="22" /><span>Definições</span></NavLink>
+        </nav>
+    </div>
+}
+
+@code {
+    private bool _ready;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Session.Changed += OnSessionChanged;
+        await Session.InitializeAsync();
+        _ready = true;
+
+        if (!Session.IsAuthenticated)
+        {
+            Navigation.NavigateTo("login");
+        }
+    }
+
+    public void Dispose() => Session.Changed -= OnSessionChanged;
+
+    private void OnSessionChanged()
+    {
+        if (Session.IsAuthenticated)
+        {
+            return;
+        }
+
+        InvokeAsync(() =>
+        {
+            Library.Reset();
+            Navigation.NavigateTo("login");
+        });
+    }
+}

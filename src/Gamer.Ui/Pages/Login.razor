@@ -1,0 +1,84 @@
+﻿@page "/login"
+@layout Layout.LoginLayout
+@inject IGamerApi Api
+@inject AuthSession Session
+@inject ServerSettings Server
+@inject NavigationManager Navigation
+
+<div class="login card">
+    <Logo Size="84" />
+    <h1>Gamer</h1>
+    <p class="muted">O teu backlog de jogos, sempre contigo.</p>
+
+    <form @onsubmit="LoginAsync" class="form">
+        <label class="field">
+            <span>Utilizador</span>
+            <input class="input" @bind="_username" autocomplete="username" autocapitalize="none" />
+        </label>
+        <label class="field">
+            <span>Palavra-passe</span>
+            <input class="input" type="password" @bind="_password" autocomplete="current-password" />
+        </label>
+
+        <details class="server" open="@_showServer">
+            <summary>Servidor</summary>
+            <input class="input" @bind="_serverUrl" placeholder="http://192.168.1.10:5199" autocapitalize="none" />
+        </details>
+
+        @if (_error is not null)
+        {
+            <div class="form-error">@_error</div>
+        }
+
+        <button type="submit" class="btn btn-primary btn-block" disabled="@_busy">@(_busy ? "A entrar…" : "Entrar")</button>
+    </form>
+</div>
+
+@code {
+    private string _username = string.Empty;
+    private string _password = string.Empty;
+    private string _serverUrl = string.Empty;
+    private string? _error;
+    private bool _busy;
+    private bool _showServer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Session.InitializeAsync();
+        if (Session.IsAuthenticated)
+        {
+            Navigation.NavigateTo(string.Empty);
+            return;
+        }
+
+        _serverUrl = await Server.GetBaseUrlAsync();
+    }
+
+    private async Task LoginAsync()
+    {
+        _error = null;
+        if (!await Server.TrySetBaseUrlAsync(_serverUrl))
+        {
+            _showServer = true;
+            _error = "O endereço do servidor não é válido.";
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            Gamer.Contracts.Auth.LoginResponse login = await Api.LoginAsync(new Gamer.Contracts.Auth.LoginRequest(_username, _password), CancellationToken.None);
+            await Session.SignInAsync(login);
+            Navigation.NavigateTo(string.Empty);
+        }
+        catch (ApiException exception)
+        {
+            _showServer = true;
+            _error = exception.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

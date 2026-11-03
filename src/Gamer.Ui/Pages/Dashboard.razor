@@ -1,0 +1,115 @@
+﻿@page "/"
+@implements IDisposable
+@inject GameLibrary Library
+
+<header class="page-header">
+    <h1>Painel</h1>
+</header>
+
+@if (Library.IsLoading && !Library.IsLoaded)
+{
+    <div class="empty"><div class="spinner"></div><p>A carregar…</p></div>
+}
+else if (Library.LoadError is not null)
+{
+    <div class="empty">
+        <p>@Library.LoadError</p>
+        <button class="btn btn-primary" @onclick="() => Library.ReloadAsync(CancellationToken.None)">Tentar de novo</button>
+    </div>
+}
+else
+{
+    DashboardStats stats = DashboardStats.From(Library.Games.ToList());
+
+    <section class="card hero">
+        <ProgressRing Percent="stats.CompletionPercent" Caption="terminados" />
+        <div class="hero-text">
+            <h2>@stats.Completed de @stats.Total jogos terminados</h2>
+            <p class="muted">Faltam @stats.Backlog no backlog. Bora despachar!</p>
+        </div>
+    </section>
+
+    <section class="tiles">
+        <div class="tile st-backlog"><strong>@stats.Backlog</strong><span>Backlog</span></div>
+        <div class="tile st-playing"><strong>@stats.Playing</strong><span>A jogar</span></div>
+        <div class="tile st-completed"><strong>@stats.Completed</strong><span>Terminados</span></div>
+        <div class="tile deck"><strong>@stats.OnDeck</strong><span>No Deck</span></div>
+    </section>
+
+    <section class="card suggest">
+        <div class="suggest-head">
+            <div>
+                <h3>Não sabes o que jogar?</h3>
+                <p class="muted">Deixa a sorte escolher do teu backlog.</p>
+            </div>
+            <button class="btn btn-primary" @onclick="PickRandom"><Icon Name="shuffle" Size="18" /> Sugere-me</button>
+        </div>
+
+        @if (_suggestion is not null)
+        {
+            <GameCard Game="_suggestion" OnOpen="() => _editing = _suggestion" OnAdvance="StartSuggestionAsync" />
+        }
+    </section>
+
+    @if (Library.Games.Any(g => g.Status == GameStatus.Playing))
+    {
+        <h3 class="section-title">A jogar agora</h3>
+        @foreach (GameDto game in Library.Games.Where(g => g.Status == GameStatus.Playing))
+        {
+            <GameCard @key="game.Id" Game="game" OnOpen="() => _editing = game" OnAdvance="() => AdvanceAsync(game)" />
+        }
+    }
+
+    <h3 class="section-title">Por plataforma</h3>
+    <section class="card bars">
+        @foreach (PlatformCount platform in stats.ByPlatform)
+        {
+            <div class="bar-row">
+                <span class="bar-label">@platform.Name</span>
+                <div class="bar-track"><div class="bar-fill fam-@platform.Family.ToLowerInvariant()" style="width:@(100 * platform.Count / stats.ByPlatform.Max(p => p.Count))%"></div></div>
+                <span class="bar-value">@platform.Count</span>
+            </div>
+        }
+    </section>
+}
+
+@if (_editing is not null)
+{
+    <GameEditor Game="_editing" OnClose="() => _editing = null" />
+}
+
+@code {
+    private GameDto? _suggestion;
+    private GameDto? _editing;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Library.Changed += OnLibraryChanged;
+        await Library.EnsureLoadedAsync(CancellationToken.None);
+    }
+
+    public void Dispose() => Library.Changed -= OnLibraryChanged;
+
+    private void OnLibraryChanged() => InvokeAsync(StateHasChanged);
+
+    private void PickRandom()
+    {
+        List<GameDto> backlog = Library.Games.Where(g => g.Status == GameStatus.Backlog).ToList();
+        _suggestion = backlog.Count == 0 ? null : backlog[Random.Shared.Next(backlog.Count)];
+    }
+
+    private async Task StartSuggestionAsync()
+    {
+        if (_suggestion is null)
+        {
+            return;
+        }
+
+        if (await Library.SetStatusAsync(_suggestion, GameStatus.Playing, CancellationToken.None))
+        {
+            _suggestion = null;
+        }
+    }
+
+    private Task AdvanceAsync(GameDto game) => Library.SetStatusAsync(game, game.Status.Next(), CancellationToken.None);
+}

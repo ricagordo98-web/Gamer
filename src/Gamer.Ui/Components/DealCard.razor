@@ -1,0 +1,81 @@
+<div class="card deal">
+    <div class="deal-head">
+        <div class="game-title">@Deal.Title</div>
+        <div class="deal-badges">
+            @if (Deal.Owned)
+            {
+                <span class="badge badge-owned">Já tens</span>
+            }
+            @if (Deal.OnWishlist)
+            {
+                <span class="badge badge-wish">Wishlist</span>
+            }
+        </div>
+    </div>
+
+    @if (Deal.Best is { } best)
+    {
+        <div class="deal-best">
+            <strong>@DealFormat.Money(best.Price, best.Currency)</strong>
+            <span class="muted">na @best.Store</span>
+            @if (best.DiscountPercent > 0)
+            {
+                <span class="discount">-@best.DiscountPercent%</span>
+            }
+            @if (Deal.Saving is > 0)
+            {
+                <span class="muted">· poupas @DealFormat.Money(Deal.Saving.Value, best.Currency) face à 2.ª melhor</span>
+            }
+        </div>
+
+        <ul class="offers">
+            @foreach ((OfferDto offer, int index) in Deal.Offers.Select((o, i) => (o, i)))
+            {
+                <li class="@(index == 0 ? "best" : string.Empty)">
+                    <a href="@offer.Url" target="_blank" rel="noopener noreferrer">@offer.Store</a>
+                    <span class="offer-price">
+                        @if (offer.DiscountPercent > 0)
+                        {
+                            <s class="muted">@DealFormat.Money(offer.OriginalPrice, offer.Currency)</s>
+                        }
+                        @DealFormat.Money(offer.Price, offer.Currency)
+                    </span>
+                </li>
+            }
+        </ul>
+    }
+    else
+    {
+        <p class="muted">Ainda sem preços.</p>
+    }
+
+    @if (Deal.Stores.Any(s => !s.Available))
+    {
+        <div class="unavailable">
+            @foreach (StoreStatusDto status in Deal.Stores.Where(s => !s.Available))
+            {
+                <span class="chip off" title="@status.Reason">@status.Store indisponível</span>
+            }
+        </div>
+    }
+
+    @if (OnTrack.HasDelegate && Deal.TrackedId is null && !Deal.OnWishlist)
+    {
+        <div class="sheet-actions"><button class="btn" @onclick="OnTrack"><Icon Name="plus" Size="16" /> Acompanhar</button></div>
+    }
+    else if (OnUntrack.HasDelegate && Deal.TrackedId is not null && !Deal.OnWishlist)
+    {
+        <div class="sheet-actions"><button class="btn btn-danger" @onclick="OnUntrack"><Icon Name="trash" Size="16" /> Deixar de acompanhar</button></div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public DealDto Deal { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback OnTrack { get; set; }
+
+    [Parameter]
+    public EventCallback OnUntrack { get; set; }
+}

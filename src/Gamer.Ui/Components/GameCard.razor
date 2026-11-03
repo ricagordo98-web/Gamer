@@ -1,0 +1,36 @@
+﻿<div class="card game" role="button" tabindex="0" @onclick="OnOpen">
+    <button type="button" class="status-btn st-@Game.Status.CssClass()" title="Mudar estado: @Game.Status.Next().Label()"
+            @onclick="OnAdvance" @onclick:stopPropagation="true">
+        <Icon Name="@StatusIcon" Size="18" />
+    </button>
+    <div class="game-main">
+        <div class="game-title">@Game.Title</div>
+        <div class="game-meta">
+            <PlatformChip Name="@Game.PlatformName" Family="@Game.PlatformFamily" />
+            <span class="muted">@(Game.Format == PlatformFormat.Physical ? "Físico" : "Digital")</span>
+            @if (Game.OnDeck)
+            {
+                <span class="deck-badge"><Icon Name="deck" Size="14" /> Deck</span>
+            }
+        </div>
+    </div>
+    <StatusPill Status="Game.Status" />
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public GameDto Game { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback OnOpen { get; set; }
+
+    [Parameter]
+    public EventCallback OnAdvance { get; set; }
+
+    private string StatusIcon => Game.Status switch
+    {
+        GameStatus.Playing => "play",
+        GameStatus.Completed => "check",
+        _ => "circle",
+    };
+}

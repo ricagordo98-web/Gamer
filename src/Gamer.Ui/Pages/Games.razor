@@ -1,0 +1,104 @@
+﻿@page "/games"
+@implements IDisposable
+@inject GameLibrary Library
+
+@{
+    GameFilter filter = Library.Filter;
+    List<GameDto> visible = filter.Apply(Library.Games).ToList();
+    List<GameDto> forCounts = filter.ApplyExceptStatus(Library.Games).ToList();
+}
+
+<header class="page-header">
+    <h1>Jogos <small>@visible.Count</small></h1>
+    <button class="btn btn-primary desktop-only" @onclick="() => _adding = true"><Icon Name="plus" Size="18" /> Novo jogo</button>
+</header>
+
+<div class="toolbar">
+    <label class="search">
+        <Icon Name="search" Size="18" />
+        <input type="search" placeholder="Procurar jogo…" @bind="filter.Search" @bind:event="oninput" />
+    </label>
+
+    <div class="chips">
+        <button class="chip @(filter.Status is null ? "on" : string.Empty)" @onclick="() => filter.Status = null">Todos <b>@forCounts.Count</b></button>
+        @foreach (GameStatus status in Enum.GetValues<GameStatus>())
+        {
+            <button class="chip st-@status.CssClass() @(filter.Status == status ? "on" : string.Empty)" @onclick="() => filter.Status = status">
+                @status.Label() <b>@forCounts.Count(g => g.Status == status)</b>
+            </button>
+        }
+    </div>
+
+    <div class="filters-row">
+        <select class="input" @bind="filter.PlatformId">
+            <option value="">Todas as plataformas</option>
+            @foreach (PlatformDto platform in Library.Platforms)
+            {
+                <option value="@platform.Id">@platform.Name</option>
+            }
+        </select>
+        <button class="chip @(filter.OnlyDeck ? "on" : string.Empty)" @onclick="() => filter.OnlyDeck = !filter.OnlyDeck">
+            <Icon Name="deck" Size="16" /> Deck
+        </button>
+        @if (filter.IsActive)
+        {
+            <button class="chip" @onclick="filter.Reset">Limpar</button>
+        }
+    </div>
+</div>
+
+@if (Library.IsLoading && !Library.IsLoaded)
+{
+    <div class="empty"><div class="spinner"></div><p>A carregar…</p></div>
+}
+else if (Library.LoadError is not null)
+{
+    <div class="empty">
+        <p>@Library.LoadError</p>
+        <button class="btn btn-primary" @onclick="() => Library.ReloadAsync(CancellationToken.None)">Tentar de novo</button>
+    </div>
+}
+else if (visible.Count == 0)
+{
+    <div class="empty">
+        <p>Nenhum jogo encontrado.</p>
+        @if (filter.IsActive)
+        {
+            <button class="btn" @onclick="filter.Reset">Limpar filtros</button>
+        }
+    </div>
+}
+else
+{
+    <Virtualize Items="visible" Context="game" ItemSize="80" OverscanCount="8">
+        <GameCard @key="game.Id" Game="game" OnOpen="() => _editing = game" OnAdvance="() => AdvanceAsync(game)" />
+    </Virtualize>
+}
+
+<button class="fab mobile-only" @onclick="() => _adding = true" aria-label="Novo jogo"><Icon Name="plus" Size="26" /></button>
+
+@if (_adding)
+{
+    <GameEditor OnClose="() => _adding = false" />
+}
+else if (_editing is not null)
+{
+    <GameEditor Game="_editing" OnClose="() => _editing = null" />
+}
+
+@code {
+    private GameDto? _editing;
+    private bool _adding;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Library.Changed += OnLibraryChanged;
+        await Library.EnsureLoadedAsync(CancellationToken.None);
+    }
+
+    public void Dispose() => Library.Changed -= OnLibraryChanged;
+
+    private void OnLibraryChanged() => InvokeAsync(StateHasChanged);
+
+    private Task AdvanceAsync(GameDto game) => Library.SetStatusAsync(game, game.Status.Next(), CancellationToken.None);
+}

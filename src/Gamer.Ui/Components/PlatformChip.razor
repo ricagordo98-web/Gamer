@@ -1,0 +1,9 @@
+﻿<span class="chip-platform fam-@Family.ToLowerInvariant()">@Name</span>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Name { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public string Family { get; set; } = string.Empty;
+}

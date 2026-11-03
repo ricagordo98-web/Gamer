@@ -1,0 +1,118 @@
+@page "/steam"
+@inject IGamerApi Api
+@inject ToastService Toasts
+
+<header class="page-header">
+    <h1>Steam</h1>
+    <button class="btn" @onclick="SyncAsync" disabled="@_syncing">
+        <Icon Name="refresh" Size="18" /> @(_syncing ? "A sincronizar…" : "Sincronizar")
+    </button>
+</header>
+
+<div class="chips tabs">
+    <button class="chip @(!_showLibrary ? "on" : string.Empty)" @onclick="() => _showLibrary = false">Wishlist <b>@_wishlist.Count</b></button>
+    <button class="chip @(_showLibrary ? "on" : string.Empty)" @onclick="() => _showLibrary = true">Biblioteca <b>@_library.Count</b></button>
+</div>
+
+<label class="search steam-search">
+    <Icon Name="search" Size="18" />
+    <input type="search" placeholder="Filtrar…" @bind="_filter" @bind:event="oninput" />
+</label>
+
+@if (_loading)
+{
+    <div class="empty"><div class="spinner"></div><p>A carregar…</p></div>
+}
+else if (_error is not null)
+{
+    <div class="empty">
+        <p>@_error</p>
+        <button class="btn btn-primary" @onclick="LoadAsync">Tentar de novo</button>
+    </div>
+}
+else if (_showLibrary)
+{
+    @if (_library.Count == 0)
+    {
+        <div class="empty"><p>Sem jogos. Configura a Steam nas Definições e sincroniza.</p></div>
+    }
+
+    @foreach (SteamLibraryItemDto item in _library.Where(i => Matches(i.Title)))
+    {
+        <div class="card steam-row">
+            <span class="game-title">@item.Title</span>
+            <span class="muted">@DealFormat.Playtime(item.PlaytimeMinutes)</span>
+        </div>
+    }
+}
+else
+{
+    @if (_wishlist.Count == 0)
+    {
+        <div class="empty"><p>Wishlist vazia. Configura a Steam nas Definições e sincroniza.</p></div>
+    }
+
+    @foreach (WishlistItemDto item in _wishlist.Where(i => Matches(i.Title)))
+    {
+        <div class="card steam-row">
+            <span class="game-title">@item.Title</span>
+            @if (item.AddedAt is { } added)
+            {
+                <span class="muted">@added.ToLocalTime().ToString("dd/MM/yyyy")</span>
+            }
+        </div>
+    }
+}
+
+@code {
+    private List<SteamLibraryItemDto> _library = [];
+    private List<WishlistItemDto> _wishlist = [];
+    private string _filter = string.Empty;
+    private string? _error;
+    private bool _showLibrary;
+    private bool _loading = true;
+    private bool _syncing;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private bool Matches(string title) =>
+        string.IsNullOrWhiteSpace(_filter) || title.Contains(_filter.Trim(), StringComparison.OrdinalIgnoreCase);
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+        try
+        {
+            _library = (await Api.GetSteamLibraryAsync(CancellationToken.None)).ToList();
+            _wishlist = (await Api.GetWishlistAsync(CancellationToken.None)).ToList();
+        }
+        catch (ApiException exception)
+        {
+            _error = exception.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task SyncAsync()
+    {
+        _syncing = true;
+        try
+        {
+            SteamSyncResultDto result = await Api.SyncSteamAsync(CancellationToken.None);
+            await LoadAsync();
+            Toasts.Success($"{result.LibraryCount} jogos e {result.WishlistCount} na wishlist.");
+        }
+        catch (ApiException exception)
+        {
+            Toasts.Error(exception.Message);
+        }
+        finally
+        {
+            _syncing = false;
+        }
+    }
+}

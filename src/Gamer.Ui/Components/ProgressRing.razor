@@ -1,0 +1,14 @@
+﻿<div class="ring" style="--value:@Percent">
+    <div class="ring-inner">
+        <strong>@Percent%</strong>
+        <span>@Caption</span>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public int Percent { get; set; }
+
+    [Parameter]
+    public string Caption { get; set; } = string.Empty;
+}

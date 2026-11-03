@@ -1,0 +1,176 @@
+﻿@inject GameLibrary Library
+
+<div class="overlay" @onclick="OnClose">
+    <div class="sheet" role="dialog" aria-modal="true" @onclick:stopPropagation="true">
+        <div class="sheet-header">
+            <h2>@(Game is null ? "Novo jogo" : "Editar jogo")</h2>
+            <button type="button" class="icon-btn" @onclick="OnClose" aria-label="Fechar"><Icon Name="x" /></button>
+        </div>
+
+        <EditForm Model="_form" OnValidSubmit="SaveAsync" class="form">
+            <label class="field">
+                <span>Título</span>
+                <input class="input" @bind="_form.Title" @bind:event="oninput" maxlength="200" autofocus placeholder="Nome do jogo" />
+            </label>
+
+            <label class="field">
+                <span>Plataforma</span>
+                <select class="input" @bind="_form.PlatformId">
+                    <option value="0" disabled>Escolhe a plataforma…</option>
+                    @foreach (IGrouping<string, PlatformDto> family in Library.Platforms.GroupBy(p => p.Family))
+                    {
+                        <optgroup label="@family.Key">
+                            @foreach (PlatformDto platform in family)
+                            {
+                                <option value="@platform.Id">@platform.Name</option>
+                            }
+                        </optgroup>
+                    }
+                </select>
+            </label>
+
+            <div class="field">
+                <span>Estado</span>
+                <div class="segmented">
+                    @foreach (GameStatus status in Enum.GetValues<GameStatus>())
+                    {
+                        <button type="button" class="seg @(_form.Status == status ? "on" : string.Empty) st-@status.CssClass()"
+                                @onclick="() => _form.Status = status">@status.Label()</button>
+                    }
+                </div>
+            </div>
+
+            <div class="field-row">
+                <label class="toggle">
+                    <input type="checkbox" @bind="_form.OnDeck" />
+                    <span class="toggle-track"></span>
+                    <span>Funciona no Deck</span>
+                </label>
+
+                <label class="field compact">
+                    <span>Nota</span>
+                    <select class="input" @bind="_form.Rating">
+                        <option value="0">—</option>
+                        @for (int rating = 1; rating <= 10; rating++)
+                        {
+                            <option value="@rating">@rating</option>
+                        }
+                    </select>
+                </label>
+            </div>
+
+            <label class="field">
+                <span>Notas</span>
+                <textarea class="input" rows="3" @bind="_form.Notes" maxlength="2000" placeholder="Opcional"></textarea>
+            </label>
+
+            @if (_error is not null)
+            {
+                <div class="form-error">@_error</div>
+            }
+
+            <div class="sheet-actions">
+                @if (Game is not null)
+                {
+                    <button type="button" class="btn btn-danger" @onclick="DeleteAsync" disabled="@_busy">
+                        <Icon Name="trash" Size="16" /> @(_confirmDelete ? "Confirmar" : "Apagar")
+                    </button>
+                }
+                <span class="spacer"></span>
+                <button type="button" class="btn" @onclick="OnClose">Cancelar</button>
+                <button type="submit" class="btn btn-primary" disabled="@_busy">Guardar</button>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private readonly FormModel _form = new();
+    private bool _busy;
+    private bool _confirmDelete;
+    private string? _error;
+
+    [Parameter]
+    public GameDto? Game { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    protected override void OnInitialized()
+    {
+        if (Game is null)
+        {
+            _form.PlatformId = Library.Filter.PlatformId ?? 0;
+            return;
+        }
+
+        _form.Title = Game.Title;
+        _form.PlatformId = Game.PlatformId;
+        _form.Status = Game.Status;
+        _form.OnDeck = Game.OnDeck;
+        _form.Rating = Game.Rating ?? 0;
+        _form.Notes = Game.Notes ?? string.Empty;
+    }
+
+    private async Task SaveAsync()
+    {
+        _error = Validate();
+        if (_error is not null)
+        {
+            return;
+        }
+
+        _busy = true;
+        GameRequest request = new(
+            _form.Title.Trim(),
+            _form.PlatformId,
+            _form.Status,
+            _form.OnDeck,
+            _form.Rating == 0 ? null : _form.Rating,
+            string.IsNullOrWhiteSpace(_form.Notes) ? null : _form.Notes.Trim());
+
+        bool saved = await Library.SaveAsync(Game?.Id, request, CancellationToken.None);
+        _busy = false;
+        if (saved)
+        {
+            await OnClose.InvokeAsync();
+        }
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (!_confirmDelete)
+        {
+            _confirmDelete = true;
+            return;
+        }
+
+        _busy = true;
+        bool deleted = await Library.DeleteAsync(Game!.Id, CancellationToken.None);
+        _busy = false;
+        if (deleted)
+        {
+            await OnClose.InvokeAsync();
+        }
+    }
+
+    private string? Validate()
+    {
+        if (string.IsNullOrWhiteSpace(_form.Title))
+        {
+            return "Indica o título do jogo.";
+        }
+
+        return _form.PlatformId == 0 ? "Escolhe a plataforma." : null;
+    }
+
+    private class FormModel
+    {
+        public string Title { get; set; } = string.Empty;
+        public int PlatformId { get; set; }
+        public GameStatus Status { get; set; } = GameStatus.Backlog;
+        public bool OnDeck { get; set; }
+        public int Rating { get; set; }
+        public string Notes { get; set; } = string.Empty;
+    }
+}
