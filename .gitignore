@@ -1,0 +1,6 @@
+﻿bin/
+obj/
+Release/
+tools/ef/
+.vs/
+*.user

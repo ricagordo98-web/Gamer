@@ -1,4 +1,4 @@
-# Game Backlog — Design
+﻿# Game Backlog â€” Design
 
 ## Goal
 Cross-platform (Android/Windows/iOS/Mac via MAUI, plus web) app to manage a game backlog, replacing `Jogos Backlog.xlsx` (741 games, 16 platforms). Modern, fast, lightweight, mobile-friendly. Data synced through a central API.
@@ -6,12 +6,12 @@ Cross-platform (Android/Windows/iOS/Mac via MAUI, plus web) app to manage a game
 ## Solution structure
 | Project | Purpose |
 |---|---|
-| `GameBacklog.Contracts` | Shared DTOs (records) and enums |
-| `GameBacklog.Api` | ASP.NET Core minimal API, EF Core, SQLite, JWT auth, FluentValidation |
-| `GameBacklog.Web.Ui` | Razor Class Library: all pages/components, `IGameService` abstraction |
-| `GameBacklog.Web` | Blazor WebAssembly host using the RCL |
-| `GameBacklog.Maui` | MAUI Blazor Hybrid host using the RCL |
-| `GameBacklog.Tests` | xUnit, FluentAssertions, NSubstitute |
+| `Gamer.Contracts` | Shared DTOs (records) and enums |
+| `Gamer.Api` | ASP.NET Core minimal API, EF Core, SQLite, JWT auth, FluentValidation |
+| `Gamer.Web.Ui` | Razor Class Library: all pages/components, `IGameService` abstraction |
+| `Gamer.Web` | Blazor WebAssembly host using the RCL |
+| `Gamer.Maui` | MAUI Blazor Hybrid host using the RCL |
+| `Gamer.Tests` | xUnit, FluentAssertions, NSubstitute |
 
 ## Data model
 - `Game`: Id, Title, PlatformId, Status, OnDeck, Rating?, Notes?, CreatedAt, UpdatedAt.
@@ -37,3 +37,4 @@ Unit tests for services, validators and Excel mapping; endpoint tests with in-me
 ## Risks
 - Verify the MAUI workload for .NET 10 is installed (installed manifests are .NET 11 RC).
 - MAUI Android/iOS builds depend on available SDKs/Mac; Windows is verifiable locally.
+
