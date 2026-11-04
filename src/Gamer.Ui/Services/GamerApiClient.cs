@@ -81,6 +81,26 @@ public class GamerApiClient(HttpClient http) : IGamerApi
     public Task<RefreshStatusDto> RefreshPromotionsAsync(CancellationToken cancellationToken) =>
         SendAsync<RefreshStatusDto>(() => http.PostAsync("api/promotions/refresh", null, cancellationToken), cancellationToken);
 
+    public Task<CatalogPageDto> GetCatalogAsync(CatalogQuery query, bool refresh, CancellationToken cancellationToken)
+    {
+        List<string> parts =
+        [
+            $"store={Uri.EscapeDataString(query.Store ?? string.Empty)}",
+            $"onlySale={query.OnlySale}",
+            $"hideOwned={query.HideOwned}",
+            $"hideExtras={query.HideExtras}",
+            $"refresh={refresh}",
+            $"skip={query.Skip}",
+            $"take={query.Take}",
+        ];
+        if (!string.IsNullOrWhiteSpace(query.Search))
+        {
+            parts.Add($"search={Uri.EscapeDataString(query.Search.Trim())}");
+        }
+
+        return SendAsync<CatalogPageDto>(() => http.GetAsync($"api/catalog?{string.Join('&', parts)}", cancellationToken), cancellationToken);
+    }
+
     private static string PromotionQueryString(PromotionQuery query)
     {
         List<string> parts =

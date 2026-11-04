@@ -176,6 +176,9 @@ public sealed class DealsEndpointsTests : IClassFixture<GamerApiFactory>
                     new StoreOffer(storeName, "Hades", price.Value, 24.99m, $"https://{storeName}.test/hades", "EUR", "https://img.test/hades.jpg"),
                     new StoreOffer(storeName, "Hades Soundtrack DLC", 2m, 9.99m, $"https://{storeName}.test/ost", "EUR"),
                 ]));
+
+        public Task<ScrapeResult> ListCatalogAsync(Store store, int maxItems, CancellationToken cancellationToken) =>
+            Task.FromResult(ScrapeResult.Unavailable("no catalog"));
     }
 
     private sealed class FakeSteamClient : ISteamClient

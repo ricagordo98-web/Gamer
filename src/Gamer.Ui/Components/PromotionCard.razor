@@ -8,7 +8,10 @@
         {
             <span class="promo-noimg"><Icon Name="games" Size="36" /></span>
         }
-        <span class="promo-discount">-@Item.Best.DiscountPercent%</span>
+        @if (Item.Best.DiscountPercent > 0)
+        {
+            <span class="promo-discount">-@Item.Best.DiscountPercent%</span>
+        }
         <span class="promo-badges">
             @if (Item.OnWishlist)
             {
@@ -26,11 +29,21 @@
 
         <div class="promo-price">
             <strong>@DealFormat.Money(Item.Best.Price, Item.Best.Currency)</strong>
-            <s class="muted">@DealFormat.Money(Item.Best.OriginalPrice, Item.Best.Currency)</s>
+            @if (Item.Best.DiscountPercent > 0)
+            {
+                <s class="muted">@DealFormat.Money(Item.Best.OriginalPrice, Item.Best.Currency)</s>
+            }
         </div>
 
         <div class="promo-meta">
-            <span class="promo-saving">Poupas @DealFormat.Money(Item.Saving, Item.Best.Currency)</span>
+            @if (Item.Best.DiscountPercent > 0)
+            {
+                <span class="promo-saving">Poupas @DealFormat.Money(Item.Saving, Item.Best.Currency)</span>
+            }
+            else
+            {
+                <span class="muted">Sem desconto</span>
+            }
             <span class="store-tag">@Item.Best.Store</span>
         </div>
 

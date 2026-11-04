@@ -45,6 +45,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<StoreSearcher>();
         services.AddScoped<IDealService, DealService>();
         services.AddScoped<IPromotionService, PromotionService>();
+        services.AddScoped<ICatalogService, CatalogService>();
+        services.AddSingleton<CatalogCache>();
         services.AddSingleton<PromotionStatusBoard>();
         services.AddSingleton<RefreshCoordinator>();
         return services;

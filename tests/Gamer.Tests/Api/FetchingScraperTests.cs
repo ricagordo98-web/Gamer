@@ -35,8 +35,8 @@ public class FetchingScraperTests
     private static FetchingScraper Create(IOfferParser parser, params IPageFetcher[] fetchers) =>
         new("Shop", new ScraperPages((store, query) => $"{store.BaseUrl}?q={query}", store => $"{store.BaseUrl}deals", parser, parser, ".item"), fetchers);
 
-    private static StoreOffer Offer(string title, decimal price = 10m, decimal original = 20m) =>
-        new("Shop", title, price, original, "https://shop.test/x", "EUR");
+    private static StoreOffer Offer(string title, decimal price = 10m, decimal original = 20m, string url = "https://shop.test/x") =>
+        new("Shop", title, price, original, url, "EUR");
 
     [Fact]
     public async Task SearchAsync_FirstFetcherBlocked_FallsBackToSecond()
@@ -153,5 +153,49 @@ public class FetchingScraperTests
         await scraper.ListDealsAsync(Shop, CancellationToken.None);
 
         await fetcher.Received(1).FetchAsync("https://shop.test/deals", ".item", Arg.Any<CancellationToken>());
+    }
+    [Fact]
+    public async Task ListCatalogAsync_WalksPagesUntilNothingNew_AndDeduplicates()
+    {
+        IPageFetcher fetcher = Substitute.For<IPageFetcher>();
+        fetcher.FetchAsync(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<CancellationToken>()).Returns("<html/>");
+        IOfferParser parser = Substitute.For<IOfferParser>();
+        parser.Parse(Arg.Any<string>(), Arg.Any<Store>()).Returns(
+            [Offer("A", url: "u1"), Offer("B", url: "u2")],
+            [Offer("B", url: "u2"), Offer("C", url: "u3")],
+            [Offer("C", url: "u3")]);
+        FetchingScraper scraper = new("Shop", new ScraperPages((s, q) => string.Empty, s => string.Empty, parser, parser, null, (s, page) => $"{s.BaseUrl}?page={page}"), [fetcher]);
+
+        ScrapeResult result = await scraper.ListCatalogAsync(Shop, 300, CancellationToken.None);
+
+        result.Offers.Select(o => o.Title).Should().Equal("A", "B", "C");
+    }
+
+    [Fact]
+    public async Task ListCatalogAsync_StopsAtMaxItems()
+    {
+        IPageFetcher fetcher = Returning("<html/>");
+        int page = 0;
+        IOfferParser parser = Substitute.For<IOfferParser>();
+        parser.Parse(Arg.Any<string>(), Arg.Any<Store>()).Returns(_ =>
+        {
+            page++;
+            return new[] { Offer($"G{page}a", url: $"{page}a"), Offer($"G{page}b", url: $"{page}b") };
+        });
+        FetchingScraper scraper = new("Shop", new ScraperPages((s, q) => string.Empty, s => string.Empty, parser, parser, null, (s, p) => $"{s.BaseUrl}?page={p}"), [fetcher]);
+
+        ScrapeResult result = await scraper.ListCatalogAsync(Shop, 3, CancellationToken.None);
+
+        result.Offers.Should().HaveCount(3);
+    }
+
+    [Fact]
+    public async Task ListCatalogAsync_NoCatalogUrl_IsUnavailable()
+    {
+        FetchingScraper scraper = Create(ParserReturning(Offer("Hades")), Returning("<html/>"));
+
+        ScrapeResult result = await scraper.ListCatalogAsync(Shop, 300, CancellationToken.None);
+
+        result.IsAvailable.Should().BeFalse();
     }
 }

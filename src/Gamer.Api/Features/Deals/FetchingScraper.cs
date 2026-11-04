@@ -9,10 +9,13 @@ public record ScraperPages(
     Func<Store, string> ListingUrl,
     IOfferParser SearchParser,
     IOfferParser ListingParser,
-    string? WaitForSelector);
+    string? WaitForSelector,
+    Func<Store, int, string>? CatalogUrl = null);
 
 public class FetchingScraper(string storeName, ScraperPages pages, IReadOnlyList<IPageFetcher> fetchers) : IStoreScraper
 {
+    private const int MaxCatalogPages = 15;
+
     public string StoreName => storeName;
 
     public async Task<ScrapeResult> SearchAsync(Store store, string title, CancellationToken cancellationToken)
@@ -39,6 +42,37 @@ public class FetchingScraper(string storeName, ScraperPages pages, IReadOnlyList
 
         List<StoreOffer> deals = result.Offers.Where(offer => offer.DiscountPercent > 0).ToList();
         return deals.Count == 0 ? ScrapeResult.Unavailable("The page has no discounted games.") : ScrapeResult.Ok(deals);
+    }
+
+    public async Task<ScrapeResult> ListCatalogAsync(Store store, int maxItems, CancellationToken cancellationToken)
+    {
+        if (pages.CatalogUrl is null)
+        {
+            return ScrapeResult.Unavailable("This store has no browsable catalog.");
+        }
+
+        List<StoreOffer> offers = [];
+        HashSet<string> seen = [];
+        string failure = "The catalog has no results.";
+
+        for (int page = 1; page <= MaxCatalogPages && offers.Count < maxItems; page++)
+        {
+            ScrapeResult result = await RunAsync(pages.CatalogUrl(store, page), pages.ListingParser, store, cancellationToken);
+            if (!result.IsAvailable)
+            {
+                failure = result.FailureReason == StoreStatusReasons.NotFound ? failure : result.FailureReason ?? failure;
+                break;
+            }
+
+            List<StoreOffer> fresh = result.Offers.Where(offer => seen.Add(offer.Url)).ToList();
+            offers.AddRange(fresh);
+            if (fresh.Count == 0)
+            {
+                break;
+            }
+        }
+
+        return offers.Count == 0 ? ScrapeResult.Unavailable(failure) : ScrapeResult.Ok(offers.Take(maxItems).ToList());
     }
 
     private async Task<ScrapeResult> RunAsync(string url, IOfferParser parser, Store store, CancellationToken cancellationToken)

@@ -46,6 +46,7 @@ app.MapStoreEndpoints();
 app.MapSteamEndpoints();
 app.MapDealEndpoints();
 app.MapPromotionEndpoints();
+app.MapCatalogEndpoints();
 app.MapFallbackToFile("index.html");
 
 await app.RunAsync();

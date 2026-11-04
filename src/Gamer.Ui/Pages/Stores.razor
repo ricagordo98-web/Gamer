@@ -1,0 +1,190 @@
+@page "/stores"
+@implements IDisposable
+@inject IGamerApi Api
+@inject ToastService Toasts
+
+<header class="page-header">
+    <h1>Lojas <small>@(_store is null ? string.Empty : _page.Total.ToString())</small></h1>
+    <button class="btn" @onclick="RefreshAsync" disabled="@(_store is null || _page.Loading)">
+        <Icon Name="refresh" Size="18" /> @(_page.Loading ? "A carregar…" : "Atualizar")
+    </button>
+</header>
+
+<p class="muted promo-updated">@UpdatedText</p>
+
+<div class="filter-block">
+    <span class="filter-label">Escolhe a loja</span>
+    <div class="chips store-chips">
+        @foreach (string store in StoreNames)
+        {
+            <button class="chip @(_store == store ? "on" : string.Empty)" @onclick="() => SelectStoreAsync(store)">@store</button>
+        }
+    </div>
+</div>
+
+@if (_store is not null)
+{
+    <label class="search promo-search">
+        <Icon Name="search" Size="18" />
+        <input type="search" placeholder="Filtrar por nome…" @bind="_search" @bind:after="ApplyAsync" />
+    </label>
+
+    <div class="chips toggles">
+        <button class="chip @(_onlySale ? "on" : string.Empty)" @onclick="() => ToggleAsync(() => _onlySale = !_onlySale)">Só em promoção @(_page.OnSale > 0 ? $"({_page.OnSale})" : string.Empty)</button>
+        <button class="chip @(_hideOwned ? "on" : string.Empty)" @onclick="() => ToggleAsync(() => _hideOwned = !_hideOwned)">Esconder os que já tenho</button>
+        <button class="chip @(_hideExtras ? "on" : string.Empty)" @onclick="() => ToggleAsync(() => _hideExtras = !_hideExtras)">Esconder DLC e extras</button>
+    </div>
+}
+
+@if (_store is null)
+{
+    <div class="empty"><p>Escolhe uma loja para veres até 300 jogos: primeiro os que estão em promoção, depois os restantes.</p></div>
+}
+else if (_loading || (_page.Loading && _page.Items.Count == 0))
+{
+    <div class="empty"><div class="spinner"></div><p>A ir buscar os jogos da @_store, pode demorar cerca de um minuto…</p></div>
+}
+else if (_error is not null)
+{
+    <div class="empty">
+        <p>@_error</p>
+        <button class="btn btn-primary" @onclick="() => LoadAsync(true)">Tentar de novo</button>
+    </div>
+}
+else if (_page.Items.Count == 0)
+{
+    <div class="empty">
+        <p>@(_page.Error is null ? "Nenhum jogo com estes filtros." : $"Não consegui obter jogos da {_store}: {_page.Error}")</p>
+    </div>
+}
+else
+{
+    <div class="promo-grid">
+        @foreach (PromotionDto item in _page.Items)
+        {
+            <PromotionCard Item="item" />
+        }
+    </div>
+
+    @if (_page.Items.Count < _page.Total)
+    {
+        <div class="more"><button class="btn" @onclick="LoadMoreAsync" disabled="@_loadingMore">@(_loadingMore ? "A carregar…" : $"Mostrar mais ({_page.Total - _page.Items.Count})")</button></div>
+    }
+}
+
+@code {
+    private const int PageSize = 48;
+    private static readonly string[] StoreNames = ["Steam", "Humble Bundle", "Fanatical", "Gamesplanet", "Green Man Gaming", "Instant Gaming"];
+
+    private CatalogPageDto _page = new([], 0, 0, false, null, null);
+    private string? _store;
+    private string _search = string.Empty;
+    private bool _onlySale;
+    private bool _hideOwned;
+    private bool _hideExtras = true;
+    private string? _error;
+    private bool _loading;
+    private bool _loadingMore;
+    private bool _disposed;
+    private int _generation;
+
+    private string UpdatedText => _page.UpdatedAt is { } updated
+        ? $"Atualizado {DealFormat.Ago(updated, DateTimeOffset.UtcNow)}. Primeiro as promoções, ordenadas pelo maior desconto."
+        : "Ainda sem dados.";
+
+    public void Dispose() => _disposed = true;
+
+    private CatalogQuery BuildQuery(int skip) => new(_store, _search, _onlySale, _hideOwned, _hideExtras, skip, PageSize);
+
+    private Task SelectStoreAsync(string store)
+    {
+        _store = store;
+        _page = new([], 0, 0, false, null, null);
+        return LoadAsync(true);
+    }
+
+    private Task ApplyAsync() => LoadAsync(false);
+
+    private Task ToggleAsync(Action flip)
+    {
+        flip();
+        return ApplyAsync();
+    }
+
+    private Task RefreshAsync() => LoadAsync(true, refresh: true);
+
+    private async Task LoadAsync(bool showSpinner, bool refresh = false)
+    {
+        int generation = ++_generation;
+        _loading = showSpinner;
+        _error = null;
+        try
+        {
+            CatalogPageDto page = await Api.GetCatalogAsync(BuildQuery(0), refresh, CancellationToken.None);
+            if (generation != _generation)
+            {
+                return;
+            }
+
+            _page = page;
+        }
+        catch (ApiException exception)
+        {
+            _error = exception.Message;
+        }
+        finally
+        {
+            if (generation == _generation)
+            {
+                _loading = false;
+            }
+        }
+
+        if (generation == _generation && _error is null && _page.Loading)
+        {
+            await PollAsync(generation);
+        }
+    }
+
+    private async Task PollAsync(int generation)
+    {
+        while (!_disposed && generation == _generation && _page.Loading)
+        {
+            await Task.Delay(TimeSpan.FromSeconds(3));
+            try
+            {
+                CatalogPageDto page = await Api.GetCatalogAsync(BuildQuery(0), false, CancellationToken.None);
+                if (generation != _generation)
+                {
+                    return;
+                }
+
+                _page = page;
+                StateHasChanged();
+            }
+            catch (ApiException exception)
+            {
+                _error = exception.Message;
+                return;
+            }
+        }
+    }
+
+    private async Task LoadMoreAsync()
+    {
+        _loadingMore = true;
+        try
+        {
+            CatalogPageDto next = await Api.GetCatalogAsync(BuildQuery(_page.Items.Count), false, CancellationToken.None);
+            _page = _page with { Items = [.. _page.Items, .. next.Items], Total = next.Total };
+        }
+        catch (ApiException exception)
+        {
+            Toasts.Error(exception.Message);
+        }
+        finally
+        {
+            _loadingMore = false;
+        }
+    }
+}

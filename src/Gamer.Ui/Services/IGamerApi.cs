@@ -30,5 +30,6 @@ public interface IGamerApi
     Task<RefreshStatusDto> GetRefreshStatusAsync(CancellationToken cancellationToken);
     Task<PromotionPageDto> GetPromotionsAsync(PromotionQuery query, CancellationToken cancellationToken);
     Task<RefreshStatusDto> RefreshPromotionsAsync(CancellationToken cancellationToken);
+    Task<CatalogPageDto> GetCatalogAsync(CatalogQuery query, bool refresh, CancellationToken cancellationToken);
     Task<bool> PingAsync(CancellationToken cancellationToken);
 }
