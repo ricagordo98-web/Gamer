@@ -1,0 +1,280 @@
+@page "/promotions"
+@implements IDisposable
+@inject IGamerApi Api
+@inject ToastService Toasts
+
+<header class="page-header">
+    <h1>Promoções <small>@_page.Total</small></h1>
+    <button class="btn" @onclick="RefreshAsync" disabled="@_refreshing">
+        <Icon Name="refresh" Size="18" /> @(_refreshing ? "A atualizar…" : "Atualizar")
+    </button>
+</header>
+
+<p class="muted promo-updated">@UpdatedText</p>
+
+<label class="search promo-search">
+    <Icon Name="search" Size="18" />
+    <input type="search" placeholder="Filtrar por nome…" @bind="_search" @bind:after="ApplyAsync" />
+</label>
+
+<div class="filter-block">
+    <span class="filter-label">Loja</span>
+    <div class="chips store-chips">
+        <button class="chip @(_store is null ? "on" : string.Empty)" @onclick="() => SetStoreAsync(null)">Todas</button>
+        @foreach (PromotionStoreDto store in _page.Stores)
+        {
+            <button class="chip @(_store == store.Store ? "on" : string.Empty)" title="@StoreTitle(store)" @onclick="() => SetStoreAsync(store.Store)">
+                @store.Store <b>@(store.Error is null || store.Count > 0 ? store.Count.ToString() : "!")</b>
+            </button>
+        }
+    </div>
+</div>
+
+<button class="btn filters-toggle" @onclick="() => _showFilters = !_showFilters">@FiltersLabel</button>
+
+<div class="filters-panel @(_showFilters ? "open" : string.Empty)">
+<div class="filter-grid">
+    <div class="filter-block">
+        <span class="filter-label">Ordenar por</span>
+        <select class="input" @bind="_sort" @bind:after="ApplyAsync">
+            <option value="@PromotionSort.Discount">Maior desconto (%)</option>
+            <option value="@PromotionSort.Saving">Maior poupança (€)</option>
+            <option value="@PromotionSort.Price">Preço mais baixo</option>
+            <option value="@PromotionSort.Name">Nome (A–Z)</option>
+        </select>
+    </div>
+
+    <div class="filter-block">
+        <span class="filter-label">Desconto mínimo</span>
+        <div class="chips">
+            @foreach (int value in DiscountSteps)
+            {
+                <button class="chip @(_minDiscount == value ? "on" : string.Empty)" @onclick="() => SetDiscountAsync(value)">@(value == 0 ? "Qualquer" : $"{value}%+")</button>
+            }
+        </div>
+    </div>
+
+    <div class="filter-block">
+        <span class="filter-label">Preço máximo</span>
+        <div class="chips">
+            @foreach (int value in PriceSteps)
+            {
+                <button class="chip @(_maxPrice == value ? "on" : string.Empty)" @onclick="() => SetPriceAsync(value)">@(value == 0 ? "Qualquer" : $"{value} €")</button>
+            }
+        </div>
+    </div>
+</div>
+
+<div class="chips toggles">
+    <button class="chip @(_onlyWishlist ? "on" : string.Empty)" @onclick="() => ToggleAsync(() => _onlyWishlist = !_onlyWishlist)">Só wishlist</button>
+    <button class="chip @(_hideOwned ? "on" : string.Empty)" @onclick="() => ToggleAsync(() => _hideOwned = !_hideOwned)">Esconder os que já tenho</button>
+    <button class="chip @(_hideExtras ? "on" : string.Empty)" @onclick="() => ToggleAsync(() => _hideExtras = !_hideExtras)">Esconder DLC e extras</button>
+    <button class="chip @(_multiStore ? "on" : string.Empty)" @onclick="() => ToggleAsync(() => _multiStore = !_multiStore)">Em várias lojas</button>
+</div>
+</div>
+
+@if (_loading)
+{
+    <div class="empty"><div class="spinner"></div><p>A carregar…</p></div>
+}
+else if (_error is not null)
+{
+    <div class="empty">
+        <p>@_error</p>
+        <button class="btn btn-primary" @onclick="() => LoadAsync(true)">Tentar de novo</button>
+    </div>
+}
+else if (_page.Items.Count == 0)
+{
+    <div class="empty">
+        @if (_refreshing)
+        {
+            <div class="spinner"></div>
+            <p>A ir buscar as promoções às lojas, pode demorar cerca de um minuto…</p>
+        }
+        else if (_page.Stores.Sum(s => s.Count) == 0)
+        {
+            <p>Ainda não há promoções guardadas. Carrega em “Atualizar” para as ir buscar às lojas.</p>
+            @foreach (PromotionStoreDto store in _page.Stores.Where(s => s.Error is not null))
+            {
+                <p class="muted">@store.Store: @store.Error</p>
+            }
+        }
+        else
+        {
+            <p>Nenhuma promoção com estes filtros.</p>
+        }
+    </div>
+}
+else
+{
+    <div class="promo-grid">
+        @foreach (PromotionDto item in _page.Items)
+        {
+            <PromotionCard Item="item" />
+        }
+    </div>
+
+    @if (_page.Items.Count < _page.Total)
+    {
+        <div class="more"><button class="btn" @onclick="LoadMoreAsync" disabled="@_loadingMore">@(_loadingMore ? "A carregar…" : $"Mostrar mais ({_page.Total - _page.Items.Count})")</button></div>
+    }
+}
+
+@code {
+    private const int PageSize = 48;
+    private static readonly int[] DiscountSteps = [0, 25, 50, 75];
+    private static readonly int[] PriceSteps = [0, 5, 10, 20, 40];
+
+    private PromotionPageDto _page = new([], 0, [], null);
+    private string? _store;
+    private string _search = string.Empty;
+    private string _sort = PromotionSort.Discount;
+    private int _minDiscount;
+    private int _maxPrice;
+    private bool _onlyWishlist;
+    private bool _hideOwned;
+    private bool _hideExtras = true;
+    private bool _multiStore;
+    private string? _error;
+    private bool _loading = true;
+    private bool _loadingMore;
+    private bool _refreshing;
+    private bool _autoRefreshed;
+    private bool _disposed;
+    private bool _showFilters;
+
+    private string UpdatedText => _page.UpdatedAt is { } updated
+        ? $"Atualizado {DealFormat.Ago(updated, DateTimeOffset.UtcNow)}. Preços das lojas, sem garantia de stock."
+        : "Ainda sem dados.";
+
+    protected override Task OnInitializedAsync() => LoadAsync(true);
+
+    public void Dispose() => _disposed = true;
+
+    private int ActiveFilters => new[]
+    {
+        _minDiscount > 0, _maxPrice > 0, _sort != PromotionSort.Discount, _onlyWishlist, _hideOwned, !_hideExtras, _multiStore,
+    }.Count(active => active);
+
+    private string FiltersLabel => ActiveFilters > 0 ? $"Filtros ({ActiveFilters})" : "Filtros";
+
+    private static string StoreTitle(PromotionStoreDto store) =>
+        store.Error is null ? $"{store.Count} promoções" : $"{store.Count} promoções. Último erro: {store.Error}";
+
+    private PromotionQuery BuildQuery(int skip) => new(
+        _store,
+        _search,
+        _minDiscount > 0 ? _minDiscount : null,
+        _maxPrice > 0 ? _maxPrice : null,
+        _onlyWishlist,
+        _hideOwned,
+        _hideExtras,
+        _multiStore,
+        _sort,
+        skip,
+        PageSize);
+
+    private async Task LoadAsync(bool showSpinner)
+    {
+        _loading = showSpinner;
+        _error = null;
+        try
+        {
+            _page = await Api.GetPromotionsAsync(BuildQuery(0), CancellationToken.None);
+        }
+        catch (ApiException exception)
+        {
+            _error = exception.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+
+        if (_error is null && !_autoRefreshed && _page.Stores.Sum(s => s.Count) == 0)
+        {
+            _autoRefreshed = true;
+            await RefreshAsync();
+        }
+    }
+
+    private async Task LoadMoreAsync()
+    {
+        _loadingMore = true;
+        try
+        {
+            PromotionPageDto next = await Api.GetPromotionsAsync(BuildQuery(_page.Items.Count), CancellationToken.None);
+            _page = _page with { Items = [.. _page.Items, .. next.Items], Total = next.Total };
+        }
+        catch (ApiException exception)
+        {
+            Toasts.Error(exception.Message);
+        }
+        finally
+        {
+            _loadingMore = false;
+        }
+    }
+
+    private Task ApplyAsync() => LoadAsync(false);
+
+    private Task SetStoreAsync(string? store)
+    {
+        _store = store;
+        return ApplyAsync();
+    }
+
+    private Task SetDiscountAsync(int value)
+    {
+        _minDiscount = value;
+        return ApplyAsync();
+    }
+
+    private Task SetPriceAsync(int value)
+    {
+        _maxPrice = value;
+        return ApplyAsync();
+    }
+
+    private Task ToggleAsync(Action flip)
+    {
+        flip();
+        return ApplyAsync();
+    }
+
+    private async Task RefreshAsync()
+    {
+        if (_refreshing)
+        {
+            return;
+        }
+
+        _refreshing = true;
+        try
+        {
+            RefreshStatusDto status = await Api.RefreshPromotionsAsync(CancellationToken.None);
+            while (status.Running && !_disposed)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(3));
+                status = await Api.GetRefreshStatusAsync(CancellationToken.None);
+                await LoadAsync(false);
+                StateHasChanged();
+            }
+
+            await LoadAsync(false);
+            if (_page.Stores.Sum(s => s.Count) == 0)
+            {
+                Toasts.Error("Nenhuma loja devolveu promoções. Passa o rato sobre as lojas para ver o motivo.");
+            }
+        }
+        catch (ApiException exception)
+        {
+            Toasts.Error(exception.Message);
+        }
+        finally
+        {
+            _refreshing = false;
+        }
+    }
+}

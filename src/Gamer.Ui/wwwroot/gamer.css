@@ -321,3 +321,51 @@ textarea.input { resize: vertical; }
     .store-row { grid-template-columns: 1fr; }
     .tab span { font-size: .62rem; }
 }
+
+/* Promotions */
+.promo-updated { margin: -8px 0 12px; font-size: .85rem; }
+.promo-search { margin-bottom: 12px; }
+.filter-block { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; min-width: 0; }
+.filter-label { font-size: .72rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.filter-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 4px 16px; }
+.filter-grid select.input { width: 100%; }
+.toggles { margin-bottom: 16px; flex-wrap: wrap; }
+.promo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+.promo { display: flex; flex-direction: column; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--border); overflow: hidden; }
+.promo-cover { position: relative; display: block; aspect-ratio: 16 / 9; background: var(--surface-2); }
+.promo-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.promo-noimg { display: grid; place-items: center; height: 100%; color: var(--muted); }
+.promo-discount { position: absolute; right: 8px; bottom: 8px; font-weight: 800; font-size: .95rem; color: #06241a; background: var(--st-completed); padding: 3px 10px; border-radius: 9px; box-shadow: 0 2px 8px rgba(0,0,0,.4); }
+.promo-badges { position: absolute; left: 8px; top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+.promo-badges .badge { backdrop-filter: blur(6px); background-color: rgba(11, 11, 22, .75); }
+.promo-body { display: flex; flex-direction: column; gap: 6px; padding: 12px; flex: 1; }
+.promo-title { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.promo-price { display: flex; align-items: baseline; gap: 8px; }
+.promo-price strong { font-size: 1.3rem; }
+.promo-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: .82rem; }
+.promo-saving { color: var(--st-completed); font-weight: 700; }
+.store-tag { padding: 2px 9px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border); font-size: .72rem; font-weight: 700; white-space: nowrap; }
+.promo-others { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: .78rem; padding-top: 6px; border-top: 1px solid var(--border); }
+.promo-others a { color: var(--text); }
+.more { display: flex; justify-content: center; margin: 18px 0 8px; }
+.deal-help { margin: -6px 0 12px; font-size: .88rem; line-height: 1.45; }
+.deal-cover { width: 96px; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 8px; flex: none; }
+.chip.failed { border-color: var(--danger); color: var(--danger); }
+.filter-block .chips { flex-wrap: wrap; overflow: visible; }
+.filters-toggle { display: none; margin-bottom: 12px; }
+.deal-head .game-title { flex: 1; min-width: 0; }
+.promo-meta { flex-wrap: wrap; }
+@media (max-width: 768px) {
+    .filters-toggle { display: inline-flex; }
+    .filters-panel:not(.open) { display: none; }
+}
+@media (max-width: 600px) {
+    .promo-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .promo-body { padding: 10px; }
+    .promo-price strong { font-size: 1.1rem; }
+    .promo-title { font-size: .9rem; }
+    .promo-discount { font-size: .8rem; padding: 2px 8px; }
+}
+@media (max-width: 768px) {
+    .filter-block .store-chips { flex-wrap: nowrap; overflow-x: auto; }
+}

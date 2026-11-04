@@ -7,3 +7,5 @@ public class BlockedException(string message) : ScrapeException(message);
 public class ParseException(string message, Exception? inner = null) : ScrapeException(message, inner);
 
 public class BrowserUnavailableException(string message, Exception? inner = null) : ScrapeException(message, inner);
+
+public class NoResultsException(string message) : ParseException(message);

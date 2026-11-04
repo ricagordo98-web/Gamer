@@ -3,15 +3,17 @@
 @inject ToastService Toasts
 
 <header class="page-header">
-    <h1>Ofertas <small>@_deals.Count</small></h1>
+    <h1>Comparar preços</h1>
     <button class="btn" @onclick="RefreshAsync" disabled="@_refreshing">
         <Icon Name="refresh" Size="18" /> @(_refreshing ? "A atualizar…" : "Atualizar preços")
     </button>
 </header>
 
+<p class="muted deal-help">Escreve o nome de um jogo para ver quanto custa em cada loja e qual é a mais barata. Os jogos que acompanhas (wishlist Steam ou os que fixares aqui) ficam em baixo com o melhor preço. Para ver o que está em promoção agora, usa a secção Promoções.</p>
+
 <form class="search deal-search" @onsubmit="SearchAsync">
     <Icon Name="search" Size="18" />
-    <input type="search" placeholder="Procurar preços de um jogo…" @bind="_query" />
+    <input type="search" placeholder="Nome do jogo (ex.: Elden Ring)" @bind="_query" />
     <button class="btn btn-primary" type="submit" disabled="@_searching">@(_searching ? "A procurar…" : "Procurar")</button>
 </form>
 
@@ -21,7 +23,7 @@
     <DealCard Deal="_result" OnTrack="TrackResultAsync" />
 }
 
-<h3 class="section-title">A acompanhar</h3>
+<h3 class="section-title">A acompanhar <small class="muted">@_deals.Count</small></h3>
 @if (_loading)
 {
     <div class="empty"><div class="spinner"></div><p>A carregar…</p></div>

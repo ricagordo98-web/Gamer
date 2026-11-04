@@ -1,33 +1,65 @@
 using Gamer.Api.Domain;
 using Gamer.Api.Features.Deals.Parsers;
+using Gamer.Contracts.Deals;
 
 namespace Gamer.Api.Features.Deals;
 
-public class FetchingScraper(
-    string storeName,
-    Func<Store, string, string> buildUrl,
-    IOfferParser parser,
-    IReadOnlyList<IPageFetcher> fetchers) : IStoreScraper
+public record ScraperPages(
+    Func<Store, string, string> SearchUrl,
+    Func<Store, string> ListingUrl,
+    IOfferParser SearchParser,
+    IOfferParser ListingParser,
+    string? WaitForSelector);
+
+public class FetchingScraper(string storeName, ScraperPages pages, IReadOnlyList<IPageFetcher> fetchers) : IStoreScraper
 {
     public string StoreName => storeName;
 
     public async Task<ScrapeResult> SearchAsync(Store store, string title, CancellationToken cancellationToken)
     {
-        string url = buildUrl(store, title);
+        ScrapeResult result = await RunAsync(pages.SearchUrl(store, title), pages.SearchParser, store, cancellationToken);
+        if (!result.IsAvailable)
+        {
+            return result;
+        }
+
+        List<StoreOffer> matches = result.Offers.Where(offer => TitleMatcher.IsMatch(title, offer.Title)).ToList();
+        return matches.Count == 0 ? ScrapeResult.Unavailable(StoreStatusReasons.NotFound) : ScrapeResult.Ok(matches);
+    }
+
+    public async Task<ScrapeResult> ListDealsAsync(Store store, CancellationToken cancellationToken)
+    {
+        ScrapeResult result = await RunAsync(pages.ListingUrl(store), pages.ListingParser, store, cancellationToken);
+        if (!result.IsAvailable)
+        {
+            return result.FailureReason == StoreStatusReasons.NotFound
+                ? ScrapeResult.Unavailable("The page returned no items; the store layout may have changed.")
+                : result;
+        }
+
+        List<StoreOffer> deals = result.Offers.Where(offer => offer.DiscountPercent > 0).ToList();
+        return deals.Count == 0 ? ScrapeResult.Unavailable("The page has no discounted games.") : ScrapeResult.Ok(deals);
+    }
+
+    private async Task<ScrapeResult> RunAsync(string url, IOfferParser parser, Store store, CancellationToken cancellationToken)
+    {
         string reason = "No fetcher configured.";
 
         foreach (IPageFetcher fetcher in fetchers)
         {
             try
             {
-                string content = await fetcher.FetchAsync(url, cancellationToken);
-                List<StoreOffer> matches = parser.Parse(content, store)
-                    .Where(offer => TitleMatcher.IsMatch(title, offer.Title))
+                string content = await fetcher.FetchAsync(url, pages.WaitForSelector, cancellationToken);
+                List<StoreOffer> offers = parser.Parse(content, store)
+                    .Select(offer => offer with { Title = TitleCleaner.Clean(offer.Title) })
+                    .Where(offer => offer.Title.Length > 0)
                     .ToList();
 
-                return matches.Count == 0
-                    ? ScrapeResult.Unavailable("No matching result.")
-                    : ScrapeResult.Ok(matches);
+                return offers.Count == 0 ? ScrapeResult.Unavailable("The page has no results.") : ScrapeResult.Ok(offers);
+            }
+            catch (NoResultsException)
+            {
+                reason = StoreStatusReasons.NotFound;
             }
             catch (Exception exception) when (exception is ScrapeException or HttpRequestException
                 || (exception is TaskCanceledException && !cancellationToken.IsCancellationRequested))

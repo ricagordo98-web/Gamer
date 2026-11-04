@@ -25,7 +25,7 @@ public sealed class HttpPageFetcher(HttpClient http) : IPageFetcher
         return new HttpPageFetcher(client);
     }
 
-    public async Task<string> FetchAsync(string url, CancellationToken cancellationToken)
+    public async Task<string> FetchAsync(string url, string? waitForSelector, CancellationToken cancellationToken)
     {
         string host = new Uri(url).Host;
         SemaphoreSlim gate = Gates.GetOrAdd(host, _ => new SemaphoreSlim(1, 1));

@@ -44,6 +44,8 @@ public static class ServiceCollectionExtensions
             ScraperCatalog.Create(provider.GetRequiredService<HttpPageFetcher>(), provider.GetRequiredService<BrowserPageFetcher>()));
         services.AddSingleton<StoreSearcher>();
         services.AddScoped<IDealService, DealService>();
+        services.AddScoped<IPromotionService, PromotionService>();
+        services.AddSingleton<PromotionStatusBoard>();
         services.AddSingleton<RefreshCoordinator>();
         return services;
     }

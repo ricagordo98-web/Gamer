@@ -13,5 +13,6 @@ public class PriceSnapshot
     public decimal OriginalPrice { get; set; }
     public string? Url { get; set; }
     public string? Currency { get; set; }
+    public string? ImageUrl { get; set; }
     public DateTimeOffset CapturedAt { get; set; }
 }

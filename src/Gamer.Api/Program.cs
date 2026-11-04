@@ -45,6 +45,7 @@ app.MapImportEndpoints();
 app.MapStoreEndpoints();
 app.MapSteamEndpoints();
 app.MapDealEndpoints();
+app.MapPromotionEndpoints();
 app.MapFallbackToFile("index.html");
 
 await app.RunAsync();

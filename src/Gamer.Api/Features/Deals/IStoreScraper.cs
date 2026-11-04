@@ -7,4 +7,6 @@ public interface IStoreScraper
     string StoreName { get; }
 
     Task<ScrapeResult> SearchAsync(Store store, string title, CancellationToken cancellationToken);
+
+    Task<ScrapeResult> ListDealsAsync(Store store, CancellationToken cancellationToken);
 }

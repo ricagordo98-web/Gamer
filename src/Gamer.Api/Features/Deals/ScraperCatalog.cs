@@ -11,34 +11,66 @@ public static class ScraperCatalog
     public const string GreenManGaming = "Green Man Gaming";
     public const string InstantGaming = "Instant Gaming";
 
+    private const string CoverPrefix = "Product cover for ";
+
     public static IReadOnlyList<IStoreScraper> Create(IPageFetcher http, IPageFetcher browser)
     {
-        IReadOnlyList<IPageFetcher> chain = [http, browser];
+        IReadOnlyList<IPageFetcher> httpFirst = [http, browser];
+        IReadOnlyList<IPageFetcher> browserOnly = [browser];
+
+        IOfferParser steamSearch = new SteamSearchParser();
+        HtmlOfferParser humble = new(new HtmlSelectors(
+            ".entity-block-container", ".entity-title", ".price-button .price", ".breakdown-full-price",
+            "a.entity-link", "img.entity-image", ".discount-amount"));
+        HtmlOfferParser fanatical = new(
+            new HtmlSelectors(
+                ".HitCardContainer", "img[alt]", ".card-price", ".was-price",
+                "a.hitCardStripe__content__purchase__price", ".product-cover-container img", ".card-saving"),
+            name => name.StartsWith(CoverPrefix, StringComparison.OrdinalIgnoreCase) ? name[CoverPrefix.Length..] : name);
+        HtmlOfferParser gamesplanet = new(new HtmlSelectors(
+            ".game_list", "h4 a", ".price_current", ".price_base", "h4 a", "img", ".price_saving"));
+        HtmlOfferParser instantGaming = new(new HtmlSelectors(
+            ".item", ".title", ".price", ".retail-price", "a.cover", "a.cover img", ".discount"));
+        IOfferParser greenManGaming = new GreenManGamingParser();
 
         return
         [
             new FetchingScraper(Steam,
-                (store, query) => $"{store.BaseUrl}api/storesearch/?term={Uri.EscapeDataString(query)}&l=english&cc={store.Region}",
-                new SteamSearchParser(), chain),
+                new ScraperPages(
+                    (store, query) => $"{store.BaseUrl}api/storesearch/?term={Uri.EscapeDataString(query)}&l=portuguese&cc={store.Region}",
+                    store => $"{store.BaseUrl}api/featuredcategories?l=portuguese&cc={store.Region}",
+                    steamSearch, new SteamSpecialsParser(), null),
+                httpFirst),
             new FetchingScraper(HumbleBundle,
-                (store, query) => $"{store.BaseUrl}store/api/search?search={Uri.EscapeDataString(query)}&request=1&page_size=20&sort=bestselling&page=0&filter=all",
-                new HumbleSearchParser(), chain),
+                new ScraperPages(
+                    (store, query) => $"{store.BaseUrl}store/search?search={Uri.EscapeDataString(query)}",
+                    store => $"{store.BaseUrl}store/search?sort=bestselling&filter=onsale",
+                    humble, humble, ".entity-block-container"),
+                browserOnly),
             new FetchingScraper(Fanatical,
-                (store, query) => $"{store.BaseUrl}en/search?search={Uri.EscapeDataString(query)}",
-                new HtmlOfferParser(new HtmlSelectors(".hit-card", ".hit-card-name, .card-name", ".price-container .price, .card-price", ".was-price, .full-price", "a")),
-                chain),
+                new ScraperPages(
+                    (store, query) => $"{store.BaseUrl}en/search?search={Uri.EscapeDataString(query)}",
+                    store => $"{store.BaseUrl}en/on-sale",
+                    fanatical, fanatical, ".HitCardContainer"),
+                browserOnly),
             new FetchingScraper(Gamesplanet,
-                (store, query) => $"{store.BaseUrl}search?query={Uri.EscapeDataString(query)}",
-                new HtmlOfferParser(new HtmlSelectors(".game_list .game, .game_list_item", ".name a, h4 a, .name", ".price_current, .price", ".price_base", ".name a, h4 a, a")),
-                chain),
+                new ScraperPages(
+                    (store, query) => $"{store.BaseUrl}search?query={Uri.EscapeDataString(query)}",
+                    store => $"{store.BaseUrl}games/offers",
+                    gamesplanet, gamesplanet, ".game_list"),
+                httpFirst),
             new FetchingScraper(GreenManGaming,
-                (store, query) => $"{store.BaseUrl}search/{Uri.EscapeDataString(query)}",
-                new HtmlOfferParser(new HtmlSelectors(".ais-Hits-item, .product-tile", ".product-name, .game-title, h3", ".current-price, .prices .price", ".prev-price, .original-price", "a")),
-                chain),
+                new ScraperPages(
+                    (store, query) => $"{store.BaseUrl}search?query={Uri.EscapeDataString(query)}",
+                    store => $"{store.BaseUrl}search?sort=discount&onsale=true",
+                    greenManGaming, greenManGaming, GreenManGamingParser.ItemSelector),
+                browserOnly),
             new FetchingScraper(InstantGaming,
-                (store, query) => $"{store.BaseUrl}en/search/?q={Uri.EscapeDataString(query)}",
-                new HtmlOfferParser(new HtmlSelectors(".item", ".name", ".price", ".retail, .discount-old", "a.cover, a")),
-                chain),
+                new ScraperPages(
+                    (store, query) => $"{store.BaseUrl}pt/pesquisar/?q={Uri.EscapeDataString(query)}",
+                    store => $"{store.BaseUrl}pt/pesquisar/?sort_by=bestsellers_desc",
+                    instantGaming, instantGaming, ".item"),
+                browserOnly),
         ];
     }
 }

@@ -1,0 +1,53 @@
+<article class="promo">
+    <a class="promo-cover" href="@Item.Best.Url" target="_blank" rel="noopener noreferrer" title="Abrir na @Item.Best.Store">
+        @if (Item.ImageUrl is { } image)
+        {
+            <img src="@image" alt="@Item.Title" loading="lazy" referrerpolicy="no-referrer" />
+        }
+        else
+        {
+            <span class="promo-noimg"><Icon Name="games" Size="36" /></span>
+        }
+        <span class="promo-discount">-@Item.Best.DiscountPercent%</span>
+        <span class="promo-badges">
+            @if (Item.OnWishlist)
+            {
+                <span class="badge badge-wish">Wishlist</span>
+            }
+            @if (Item.Owned)
+            {
+                <span class="badge badge-owned">Já tens</span>
+            }
+        </span>
+    </a>
+
+    <div class="promo-body">
+        <div class="promo-title" title="@Item.Title">@Item.Title</div>
+
+        <div class="promo-price">
+            <strong>@DealFormat.Money(Item.Best.Price, Item.Best.Currency)</strong>
+            <s class="muted">@DealFormat.Money(Item.Best.OriginalPrice, Item.Best.Currency)</s>
+        </div>
+
+        <div class="promo-meta">
+            <span class="promo-saving">Poupas @DealFormat.Money(Item.Saving, Item.Best.Currency)</span>
+            <span class="store-tag">@Item.Best.Store</span>
+        </div>
+
+        @if (Item.Others.Count > 0)
+        {
+            <div class="promo-others">
+                <span class="muted">Também em</span>
+                @foreach (OfferDto other in Item.Others)
+                {
+                    <a href="@other.Url" target="_blank" rel="noopener noreferrer">@other.Store <b>@DealFormat.Money(other.Price, other.Currency)</b></a>
+                }
+            </div>
+        }
+    </div>
+</article>
+
+@code {
+    [Parameter, EditorRequired]
+    public PromotionDto Item { get; set; } = null!;
+}

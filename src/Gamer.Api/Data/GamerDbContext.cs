@@ -13,6 +13,7 @@ public class GamerDbContext(DbContextOptions<GamerDbContext> options) : DbContex
     public DbSet<WishlistItem> Wishlist => Set<WishlistItem>();
     public DbSet<TrackedGame> TrackedGames => Set<TrackedGame>();
     public DbSet<PriceSnapshot> PriceSnapshots => Set<PriceSnapshot>();
+    public DbSet<Promotion> Promotions => Set<Promotion>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -78,8 +79,21 @@ public class GamerDbContext(DbContextOptions<GamerDbContext> options) : DbContex
             snapshot.Property(s => s.OfferTitle).HasMaxLength(300);
             snapshot.Property(s => s.Url).HasMaxLength(1000);
             snapshot.Property(s => s.Currency).HasMaxLength(10);
+            snapshot.Property(s => s.ImageUrl).HasMaxLength(1000);
             snapshot.HasOne(s => s.Store).WithMany().HasForeignKey(s => s.StoreId).OnDelete(DeleteBehavior.Cascade);
             snapshot.HasIndex(s => new { s.TitleKey, s.StoreId }).IsUnique();
+        });
+
+        modelBuilder.Entity<Promotion>(promotion =>
+        {
+            promotion.Property(p => p.Title).HasMaxLength(300);
+            promotion.Property(p => p.TitleKey).HasMaxLength(300);
+            promotion.Property(p => p.ImageUrl).HasMaxLength(1000);
+            promotion.Property(p => p.Url).HasMaxLength(1000);
+            promotion.Property(p => p.Currency).HasMaxLength(10);
+            promotion.HasOne(p => p.Store).WithMany().HasForeignKey(p => p.StoreId).OnDelete(DeleteBehavior.Cascade);
+            promotion.HasIndex(p => new { p.StoreId, p.Url }).IsUnique();
+            promotion.HasIndex(p => p.TitleKey);
         });
     }
 }

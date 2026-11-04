@@ -106,6 +106,7 @@ public class DealService(GamerDbContext db, StoreSearcher searcher, TimeProvider
             snapshot.OriginalPrice = outcome.Offer?.OriginalPrice ?? 0;
             snapshot.Url = outcome.Offer?.Url;
             snapshot.Currency = outcome.Offer?.Currency;
+            snapshot.ImageUrl = outcome.Offer?.ImageUrl;
             snapshot.CapturedAt = time.GetUtcNow();
         }
 
@@ -147,7 +148,7 @@ public class DealService(GamerDbContext db, StoreSearcher searcher, TimeProvider
     {
         List<StoreOffer> offers = snapshots
             .Where(s => s.Available && s.Url is not null && s.Currency is not null)
-            .Select(s => new StoreOffer(s.Store.Name, s.OfferTitle ?? entry.Title, s.Price, s.OriginalPrice, s.Url!, s.Currency!))
+            .Select(s => new StoreOffer(s.Store.Name, s.OfferTitle ?? entry.Title, s.Price, s.OriginalPrice, s.Url!, s.Currency!, s.ImageUrl))
             .ToList();
         List<StoreStatusDto> statuses = snapshots
             .OrderBy(s => s.StoreId)

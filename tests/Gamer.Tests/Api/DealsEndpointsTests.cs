@@ -167,6 +167,15 @@ public sealed class DealsEndpointsTests : IClassFixture<GamerApiFactory>
             Task.FromResult(price is null
                 ? ScrapeResult.Unavailable("blocked")
                 : ScrapeResult.Ok([new StoreOffer(storeName, title, price.Value, 24.99m, $"https://{storeName}.test/", "EUR")]));
+
+        public Task<ScrapeResult> ListDealsAsync(Store store, CancellationToken cancellationToken) =>
+            Task.FromResult(price is null
+                ? ScrapeResult.Unavailable("blocked")
+                : ScrapeResult.Ok(
+                [
+                    new StoreOffer(storeName, "Hades", price.Value, 24.99m, $"https://{storeName}.test/hades", "EUR", "https://img.test/hades.jpg"),
+                    new StoreOffer(storeName, "Hades Soundtrack DLC", 2m, 9.99m, $"https://{storeName}.test/ost", "EUR"),
+                ]));
     }
 
     private sealed class FakeSteamClient : ISteamClient

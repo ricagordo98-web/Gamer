@@ -32,7 +32,7 @@ public static class DealEndpoints
 
         group.MapPost("/refresh", (RefreshCoordinator coordinator) =>
         {
-            coordinator.TryStart();
+            coordinator.TryStart(RefreshScope.Prices);
             return Results.Accepted(value: coordinator.Status);
         });
 

@@ -4,7 +4,7 @@ namespace Gamer.Api.Features.Deals;
 
 public class PriceRefreshService(IServiceScopeFactory scopes, RefreshCoordinator coordinator, ILogger<PriceRefreshService> logger) : BackgroundService
 {
-    private static readonly TimeSpan StartupDelay = TimeSpan.FromMinutes(1);
+    private static readonly TimeSpan StartupDelay = TimeSpan.FromSeconds(20);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {

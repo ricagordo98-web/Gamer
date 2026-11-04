@@ -18,4 +18,16 @@ public static class DealFormat
 
     public static string Playtime(int minutes) =>
         minutes < 60 ? $"{minutes} min" : $"{minutes / 60} h";
+
+    public static string Ago(DateTimeOffset moment, DateTimeOffset now)
+    {
+        TimeSpan elapsed = now - moment;
+        return elapsed switch
+        {
+            { TotalMinutes: < 1 } => "agora mesmo",
+            { TotalHours: < 1 } => $"há {(int)elapsed.TotalMinutes} min",
+            { TotalDays: < 1 } => $"há {(int)elapsed.TotalHours} h",
+            _ => $"há {(int)elapsed.TotalDays} d",
+        };
+    }
 }

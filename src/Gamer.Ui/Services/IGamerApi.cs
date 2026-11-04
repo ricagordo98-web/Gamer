@@ -28,5 +28,7 @@ public interface IGamerApi
     Task UntrackGameAsync(int id, CancellationToken cancellationToken);
     Task<RefreshStatusDto> RefreshDealsAsync(CancellationToken cancellationToken);
     Task<RefreshStatusDto> GetRefreshStatusAsync(CancellationToken cancellationToken);
+    Task<PromotionPageDto> GetPromotionsAsync(PromotionQuery query, CancellationToken cancellationToken);
+    Task<RefreshStatusDto> RefreshPromotionsAsync(CancellationToken cancellationToken);
     Task<bool> PingAsync(CancellationToken cancellationToken);
 }

@@ -1,5 +1,9 @@
 <div class="card deal">
     <div class="deal-head">
+        @if (Deal.Best?.ImageUrl is { } cover)
+        {
+            <img class="deal-cover" src="@cover" alt="@Deal.Title" loading="lazy" referrerpolicy="no-referrer" />
+        }
         <div class="game-title">@Deal.Title</div>
         <div class="deal-badges">
             @if (Deal.Owned)
@@ -46,7 +50,7 @@
     }
     else
     {
-        <p class="muted">Ainda sem preços.</p>
+        <p class="muted">Nenhuma loja tem este jogo. Experimenta o nome em inglês ou sem subtítulo.</p>
     }
 
     @if (Deal.Stores.Any(s => !s.Available))
@@ -54,7 +58,14 @@
         <div class="unavailable">
             @foreach (StoreStatusDto status in Deal.Stores.Where(s => !s.Available))
             {
-                <span class="chip off" title="@status.Reason">@status.Store indisponível</span>
+                @if (status.Reason == StoreStatusReasons.NotFound)
+                {
+                    <span class="chip off">@status.Store: não tem</span>
+                }
+                else
+                {
+                    <span class="chip off failed" title="@status.Reason">@status.Store: falhou</span>
+                }
             }
         </div>
     }

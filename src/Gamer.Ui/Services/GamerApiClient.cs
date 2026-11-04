@@ -75,6 +75,51 @@ public class GamerApiClient(HttpClient http) : IGamerApi
     public Task<RefreshStatusDto> GetRefreshStatusAsync(CancellationToken cancellationToken) =>
         SendAsync<RefreshStatusDto>(() => http.GetAsync("api/deals/refresh", cancellationToken), cancellationToken);
 
+    public Task<PromotionPageDto> GetPromotionsAsync(PromotionQuery query, CancellationToken cancellationToken) =>
+        SendAsync<PromotionPageDto>(() => http.GetAsync($"api/promotions{PromotionQueryString(query)}", cancellationToken), cancellationToken);
+
+    public Task<RefreshStatusDto> RefreshPromotionsAsync(CancellationToken cancellationToken) =>
+        SendAsync<RefreshStatusDto>(() => http.PostAsync("api/promotions/refresh", null, cancellationToken), cancellationToken);
+
+    private static string PromotionQueryString(PromotionQuery query)
+    {
+        List<string> parts =
+        [
+            $"onlyWishlist={query.OnlyWishlist}",
+            $"hideOwned={query.HideOwned}",
+            $"hideExtras={query.HideExtras}",
+            $"multiStore={query.MultiStore}",
+            $"skip={query.Skip}",
+            $"take={query.Take}",
+        ];
+        if (!string.IsNullOrWhiteSpace(query.Store))
+        {
+            parts.Add($"store={Uri.EscapeDataString(query.Store)}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.Search))
+        {
+            parts.Add($"search={Uri.EscapeDataString(query.Search.Trim())}");
+        }
+
+        if (query.MinDiscount is { } minDiscount)
+        {
+            parts.Add($"minDiscount={minDiscount}");
+        }
+
+        if (query.MaxPrice is { } maxPrice)
+        {
+            parts.Add($"maxPrice={maxPrice.ToString(System.Globalization.CultureInfo.InvariantCulture)}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.Sort))
+        {
+            parts.Add($"sort={Uri.EscapeDataString(query.Sort)}");
+        }
+
+        return "?" + string.Join('&', parts);
+    }
+
     public async Task<bool> PingAsync(CancellationToken cancellationToken)
     {
         try

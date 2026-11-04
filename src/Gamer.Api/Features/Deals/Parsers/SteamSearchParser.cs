@@ -29,7 +29,7 @@ public class SteamSearchParser : IOfferParser
                 decimal current = final.GetInt64() / 100m;
                 decimal original = price.TryGetProperty("initial", out JsonElement initial) ? initial.GetInt64() / 100m : current;
                 string currency = price.TryGetProperty("currency", out JsonElement cur) ? cur.GetString() ?? store.Currency : store.Currency;
-                offers.Add(new StoreOffer(store.Name, name.GetString() ?? string.Empty, current, original, $"{store.BaseUrl}app/{id.GetInt64()}", currency));
+                offers.Add(new StoreOffer(store.Name, name.GetString() ?? string.Empty, current, original, $"{store.BaseUrl}app/{id.GetInt64()}", currency, SteamImages.Header(id.GetInt64())));
             }
 
             return offers;

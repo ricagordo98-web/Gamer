@@ -234,6 +234,10 @@ namespace Gamer.Api.Data.Migrations
                         .HasMaxLength(10)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("ImageUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("OfferTitle")
                         .HasMaxLength(300)
                         .HasColumnType("TEXT");
@@ -268,6 +272,61 @@ namespace Gamer.Api.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("PriceSnapshots");
+                });
+
+            modelBuilder.Entity("Gamer.Api.Domain.Promotion", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset>("CapturedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("DiscountPercent")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ImageUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("OriginalPrice")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("Price")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("StoreId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TitleKey")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Url")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TitleKey");
+
+                    b.HasIndex("StoreId", "Url")
+                        .IsUnique();
+
+                    b.ToTable("Promotions");
                 });
 
             modelBuilder.Entity("Gamer.Api.Domain.SteamLibraryItem", b =>
@@ -438,6 +497,17 @@ namespace Gamer.Api.Data.Migrations
                 });
 
             modelBuilder.Entity("Gamer.Api.Domain.PriceSnapshot", b =>
+                {
+                    b.HasOne("Gamer.Api.Domain.Store", "Store")
+                        .WithMany()
+                        .HasForeignKey("StoreId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Store");
+                });
+
+            modelBuilder.Entity("Gamer.Api.Domain.Promotion", b =>
                 {
                     b.HasOne("Gamer.Api.Domain.Store", "Store")
                         .WithMany()

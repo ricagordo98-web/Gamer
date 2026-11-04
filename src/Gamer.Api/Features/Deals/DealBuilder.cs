@@ -24,7 +24,7 @@ public static class DealBuilder
             .Where(o => o.Currency == currency)
             .OrderBy(o => o.Price)
             .ThenByDescending(o => o.DiscountPercent)
-            .Select(o => new OfferDto(o.Store, o.Title, o.Price, o.OriginalPrice, o.DiscountPercent, o.Url, o.Currency))
+            .Select(o => new OfferDto(o.Store, o.Title, o.Price, o.OriginalPrice, o.DiscountPercent, o.Url, o.Currency, o.ImageUrl))
             .ToList();
 
         OfferDto? best = ranked.FirstOrDefault();
