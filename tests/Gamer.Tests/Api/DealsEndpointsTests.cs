@@ -177,7 +177,7 @@ public sealed class DealsEndpointsTests : IClassFixture<GamerApiFactory>
                     new StoreOffer(storeName, "Hades Soundtrack DLC", 2m, 9.99m, $"https://{storeName}.test/ost", "EUR"),
                 ]));
 
-        public Task<ScrapeResult> ListCatalogAsync(Store store, int maxItems, CancellationToken cancellationToken) =>
+        public Task<ScrapeResult> ListCatalogAsync(Store store, int maxItems, Action<IReadOnlyList<StoreOffer>>? onPage, CancellationToken cancellationToken) =>
             Task.FromResult(ScrapeResult.Unavailable("no catalog"));
     }
 

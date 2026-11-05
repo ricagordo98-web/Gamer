@@ -121,7 +121,7 @@ public sealed class CatalogEndpointsTests : IClassFixture<GamerApiFactory>
         public Task<ScrapeResult> ListDealsAsync(Store store, CancellationToken cancellationToken) =>
             Task.FromResult(ScrapeResult.Ok([Offer("Hades", 12.49m, 24.99m), Offer("Hollow Knight", 3m, 15m)]));
 
-        public Task<ScrapeResult> ListCatalogAsync(Store store, int maxItems, CancellationToken cancellationToken) =>
+        public Task<ScrapeResult> ListCatalogAsync(Store store, int maxItems, Action<IReadOnlyList<StoreOffer>>? onPage, CancellationToken cancellationToken) =>
             Task.FromResult(ScrapeResult.Ok(
             [
                 Offer("Celeste", 19.99m, 19.99m),

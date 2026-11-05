@@ -220,7 +220,7 @@ public sealed class PromotionsEndpointsTests : IClassFixture<GamerApiFactory>
                 ? ScrapeResult.Unavailable("blocked")
                 : ScrapeResult.Ok(deals.Select(d => new StoreOffer(storeName, d.Title, d.Price, d.Original, $"https://{storeName}.test/{d.Title}", "EUR")).ToList()));
 
-        public Task<ScrapeResult> ListCatalogAsync(Store store, int maxItems, CancellationToken cancellationToken) =>
+        public Task<ScrapeResult> ListCatalogAsync(Store store, int maxItems, Action<IReadOnlyList<StoreOffer>>? onPage, CancellationToken cancellationToken) =>
             Task.FromResult(ScrapeResult.Unavailable("no catalog"));
     }
 }

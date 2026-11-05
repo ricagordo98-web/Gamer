@@ -1,0 +1,85 @@
+<article class="bundle-card" tabindex="0" @onclick="OnOpen" @onkeydown="KeyAsync">
+    <div class="bundle-hero">
+        @if (Bundle.ImageUrl is { } image)
+        {
+            <img src="@image" alt="@Bundle.Title" loading="lazy" referrerpolicy="no-referrer" />
+        }
+        <span class="bundle-kind"><Icon Name="gift" Size="14" /> @KindLabel</span>
+        @if (DealFormat.TimeLeft(Bundle.EndsAt, DateTimeOffset.UtcNow) is { } left)
+        {
+            <span class="bundle-timer @(Urgent ? "urgent" : string.Empty)"><Icon Name="clock" Size="14" /> @left</span>
+        }
+    </div>
+
+    <div class="bundle-fan">
+        @foreach ((BundleItemDto item, int index) in Bundle.Items.Take(FanSize).Select((item, index) => (item, index)))
+        {
+            <span class="fan-cover" style="--i: @index; --n: @Math.Min(FanSize, Bundle.Items.Count)">
+                @if (item.ImageUrl is { } cover)
+                {
+                    <img src="@cover" alt="@item.Title" loading="lazy" referrerpolicy="no-referrer" />
+                }
+            </span>
+        }
+        @if (Bundle.Items.Count > FanSize)
+        {
+            <span class="fan-more">+@(Bundle.Items.Count - FanSize)</span>
+        }
+    </div>
+
+    <div class="bundle-body">
+        <h3 class="bundle-title" title="@Bundle.Title">@Bundle.Title</h3>
+        <div class="bundle-stats">
+            <span><b>@Bundle.Items.Count</b> jogos</span>
+            @if (Value > 0)
+            {
+                <span>valor <b>@DealFormat.Money(Value, Bundle.Currency)</b></span>
+            }
+            @if (OwnedCount > 0)
+            {
+                <span class="badge badge-owned">Já tens @OwnedCount</span>
+            }
+        </div>
+        <div class="bundle-price">
+            <span class="muted">desde</span>
+            <strong>@DealFormat.Money(MinPrice, Bundle.Currency)</strong>
+            @if (Saving > 0)
+            {
+                <span class="bundle-saving" title="Tudo por @DealFormat.Money(MaxPrice, Bundle.Currency) em vez de @DealFormat.Money(Value, Bundle.Currency)">-@Saving%</span>
+            }
+            <span class="store-tag">@Bundle.Store</span>
+        </div>
+        @if (Bundle.Kind == BundleKinds.Tiered && Bundle.Tiers.Count > 1)
+        {
+            <div class="muted bundle-all">Tudo por @DealFormat.Money(MaxPrice, Bundle.Currency)</div>
+        }
+    </div>
+</article>
+
+@code {
+    private const int FanSize = 5;
+
+    [Parameter, EditorRequired]
+    public BundleDto Bundle { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback OnOpen { get; set; }
+
+    private decimal MinPrice => Bundle.Tiers.Min(t => t.Price);
+
+    private decimal MaxPrice => Bundle.Tiers.Max(t => t.Price);
+
+    private decimal Value => Bundle.Items.Sum(i => i.Msrp ?? 0);
+
+    private int Saving => Value > MaxPrice ? (int)Math.Round((1 - MaxPrice / Value) * 100) : 0;
+
+    private int OwnedCount => Bundle.Items.Count(i => i.Owned);
+
+    private string KindLabel => Bundle.Kind == BundleKinds.Pick
+        ? $"Escolhe {Bundle.Tiers.Min(t => t.Count)}+"
+        : $"{Bundle.Tiers.Count} níveis";
+
+    private bool Urgent => Bundle.EndsAt is { } end && end - DateTimeOffset.UtcNow < TimeSpan.FromDays(2);
+
+    private Task KeyAsync(KeyboardEventArgs args) => args.Key is "Enter" or " " ? OnOpen.InvokeAsync() : Task.CompletedTask;
+}

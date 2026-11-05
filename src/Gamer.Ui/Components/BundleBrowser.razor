@@ -1,0 +1,107 @@
+@implements IDisposable
+@inject IGamerApi Api
+
+@if (_error is not null)
+{
+    <div class="empty">
+        <p>@_error</p>
+        <button class="btn btn-primary" @onclick="() => LoadAsync(false)">Tentar de novo</button>
+    </div>
+}
+else if (_page.Items.Count == 0 && (_page.Loading || _loading))
+{
+    <div class="empty"><div class="spinner"></div><p>A abrir os bundles da @Store…</p></div>
+}
+else if (_page.Items.Count == 0)
+{
+    <div class="empty"><p>@(_page.Error is null ? "Não há bundles de jogos neste momento." : $"Não consegui obter os bundles: {_page.Error}")</p></div>
+}
+else
+{
+    <div class="bundle-grid">
+        @foreach (BundleDto bundle in _page.Items)
+        {
+            <BundleCard @key="bundle.Url" Bundle="bundle" OnOpen="() => _open = bundle" />
+        }
+    </div>
+}
+
+@if (_open is not null)
+{
+    <BundleDetail Bundle="_open" OnClose="() => _open = null" />
+}
+
+@code {
+    private BundlePageDto _page = new([], false, null, null);
+    private BundleDto? _open;
+    private string? _error;
+    private bool _loading;
+    private bool _disposed;
+    private int _generation;
+    private string? _loadedStore;
+
+    [Parameter, EditorRequired]
+    public string Store { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback<int> OnCount { get; set; }
+
+    public void Dispose() => _disposed = true;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_loadedStore != Store)
+        {
+            _loadedStore = Store;
+            _page = new([], false, null, null);
+            _open = null;
+            await LoadAsync(false);
+        }
+    }
+
+    public Task RefreshAsync() => LoadAsync(true);
+
+    private async Task LoadAsync(bool refresh)
+    {
+        int generation = ++_generation;
+        _loading = true;
+        _error = null;
+        try
+        {
+            BundlePageDto page = await Api.GetBundlesAsync(Store, refresh, CancellationToken.None);
+            if (generation != _generation)
+            {
+                return;
+            }
+
+            await SetPageAsync(page);
+            while (!_disposed && generation == _generation && _page.Loading)
+            {
+                StateHasChanged();
+                await Task.Delay(TimeSpan.FromSeconds(3));
+                page = await Api.GetBundlesAsync(Store, false, CancellationToken.None);
+                if (generation == _generation)
+                {
+                    await SetPageAsync(page);
+                }
+            }
+        }
+        catch (ApiException exception)
+        {
+            _error = exception.Message;
+        }
+        finally
+        {
+            if (generation == _generation)
+            {
+                _loading = false;
+            }
+        }
+    }
+
+    private async Task SetPageAsync(BundlePageDto page)
+    {
+        _page = page;
+        await OnCount.InvokeAsync(page.Items.Count);
+    }
+}

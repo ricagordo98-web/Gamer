@@ -10,5 +10,5 @@ public interface IStoreScraper
 
     Task<ScrapeResult> ListDealsAsync(Store store, CancellationToken cancellationToken);
 
-    Task<ScrapeResult> ListCatalogAsync(Store store, int maxItems, CancellationToken cancellationToken);
+    Task<ScrapeResult> ListCatalogAsync(Store store, int maxItems, Action<IReadOnlyList<StoreOffer>>? onPage, CancellationToken cancellationToken);
 }

@@ -14,7 +14,7 @@ public record ScraperPages(
 
 public class FetchingScraper(string storeName, ScraperPages pages, IReadOnlyList<IPageFetcher> fetchers) : IStoreScraper
 {
-    private const int MaxCatalogPages = 15;
+    private const int MaxCatalogPages = 50;
 
     public string StoreName => storeName;
 
@@ -44,7 +44,7 @@ public class FetchingScraper(string storeName, ScraperPages pages, IReadOnlyList
         return deals.Count == 0 ? ScrapeResult.Unavailable("The page has no discounted games.") : ScrapeResult.Ok(deals);
     }
 
-    public async Task<ScrapeResult> ListCatalogAsync(Store store, int maxItems, CancellationToken cancellationToken)
+    public async Task<ScrapeResult> ListCatalogAsync(Store store, int maxItems, Action<IReadOnlyList<StoreOffer>>? onPage, CancellationToken cancellationToken)
     {
         if (pages.CatalogUrl is null)
         {
@@ -70,6 +70,8 @@ public class FetchingScraper(string storeName, ScraperPages pages, IReadOnlyList
             {
                 break;
             }
+
+            onPage?.Invoke(offers.Take(maxItems).ToList());
         }
 
         return offers.Count == 0 ? ScrapeResult.Unavailable(failure) : ScrapeResult.Ok(offers.Take(maxItems).ToList());

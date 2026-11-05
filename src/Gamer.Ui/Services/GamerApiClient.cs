@@ -101,6 +101,9 @@ public class GamerApiClient(HttpClient http) : IGamerApi
         return SendAsync<CatalogPageDto>(() => http.GetAsync($"api/catalog?{string.Join('&', parts)}", cancellationToken), cancellationToken);
     }
 
+    public Task<BundlePageDto> GetBundlesAsync(string store, bool refresh, CancellationToken cancellationToken) =>
+        SendAsync<BundlePageDto>(() => http.GetAsync($"api/bundles?store={Uri.EscapeDataString(store)}&refresh={refresh}", cancellationToken), cancellationToken);
+
     private static string PromotionQueryString(PromotionQuery query)
     {
         List<string> parts =

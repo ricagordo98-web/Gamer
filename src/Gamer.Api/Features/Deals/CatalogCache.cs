@@ -10,7 +10,7 @@ public record CatalogEntry(IReadOnlyList<StoreOffer> Offers, DateTimeOffset? Upd
 
 public class CatalogCache(TimeProvider time)
 {
-    public const int MaxItems = 300;
+    public const int MaxItems = 1000;
 
     private static readonly TimeSpan Lifetime = TimeSpan.FromHours(6);
 
@@ -43,7 +43,7 @@ public class CatalogCache(TimeProvider time)
         try
         {
             Task<ScrapeResult> deals = scraper.ListDealsAsync(store, CancellationToken.None);
-            Task<ScrapeResult> catalog = scraper.ListCatalogAsync(store, MaxItems, CancellationToken.None);
+            Task<ScrapeResult> catalog = scraper.ListCatalogAsync(store, MaxItems, partial => PublishPartial(store.Name, previous, deals, partial), CancellationToken.None);
             await Task.WhenAll(deals, catalog);
 
             List<StoreOffer> merged = Merge(deals.Result, catalog.Result);
@@ -54,6 +54,16 @@ public class CatalogCache(TimeProvider time)
         catch (Exception exception)
         {
             _entries[store.Name] = previous with { Loading = false, Error = exception.Message };
+        }
+    }
+
+    private void PublishPartial(string storeName, CatalogEntry previous, Task<ScrapeResult> deals, IReadOnlyList<StoreOffer> partial)
+    {
+        ScrapeResult dealsSoFar = deals.IsCompletedSuccessfully ? deals.Result : ScrapeResult.Unavailable(string.Empty);
+        List<StoreOffer> merged = Merge(dealsSoFar, ScrapeResult.Ok(partial));
+        if (merged.Count > previous.Offers.Count)
+        {
+            _entries[storeName] = new CatalogEntry(merged, time.GetUtcNow(), true, null);
         }
     }
 

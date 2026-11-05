@@ -4,13 +4,13 @@
 @inject ToastService Toasts
 
 <header class="page-header">
-    <h1>Lojas <small>@(_store is null ? string.Empty : _page.Total.ToString())</small></h1>
-    <button class="btn" @onclick="RefreshAsync" disabled="@(_store is null || _page.Loading)">
-        <Icon Name="refresh" Size="18" /> @(_page.Loading ? "A carregar…" : "Atualizar")
+    <h1>Lojas <small>@(_store is null ? string.Empty : _showBundles ? _bundleCount.ToString() : _page.Total.ToString())</small></h1>
+    <button class="btn" @onclick="RefreshAsync" disabled="@(_store is null || (!_showBundles && _page.Loading))">
+        <Icon Name="refresh" Size="18" /> @(!_showBundles && _page.Loading ? "A carregar…" : "Atualizar")
     </button>
 </header>
 
-<p class="muted promo-updated">@UpdatedText</p>
+<p class="muted promo-updated">@(_showBundles ? "Bundles de jogos ativos, ordenados pelos que acabam primeiro. Abre um para veres os jogos e os níveis de preço." : UpdatedText)</p>
 
 <div class="filter-block">
     <span class="filter-label">Escolhe a loja</span>
@@ -22,6 +22,20 @@
     </div>
 </div>
 
+@if (_store is not null && BundleStores.Contains(_store))
+{
+    <div class="view-switch">
+        <button class="@(_showBundles ? string.Empty : "on")" @onclick="() => _showBundles = false"><Icon Name="games" Size="18" /> Jogos</button>
+        <button class="@(_showBundles ? "on" : string.Empty)" @onclick="() => _showBundles = true"><Icon Name="gift" Size="18" /> Bundles @(_bundleCount > 0 ? $"({_bundleCount})" : string.Empty)</button>
+    </div>
+}
+
+@if (_showBundles && _store is not null && BundleStores.Contains(_store))
+{
+    <BundleBrowser @ref="_bundles" Store="@_store" OnCount="count => _bundleCount = count" />
+}
+else
+{
 @if (_store is not null)
 {
     <label class="search promo-search">
@@ -38,7 +52,7 @@
 
 @if (_store is null)
 {
-    <div class="empty"><p>Escolhe uma loja para veres até 300 jogos: primeiro os que estão em promoção, depois os restantes.</p></div>
+    <div class="empty"><p>Escolhe uma loja para veres até 1000 jogos: primeiro os que estão em promoção, depois os restantes.</p></div>
 }
 else if (_loading || (_page.Loading && _page.Items.Count == 0))
 {
@@ -71,10 +85,16 @@ else
         <div class="more"><button class="btn" @onclick="LoadMoreAsync" disabled="@_loadingMore">@(_loadingMore ? "A carregar…" : $"Mostrar mais ({_page.Total - _page.Items.Count})")</button></div>
     }
 }
+}
 
 @code {
     private const int PageSize = 48;
     private static readonly string[] StoreNames = ["Steam", "Humble Bundle", "Fanatical", "Gamesplanet", "Green Man Gaming", "Instant Gaming"];
+    private static readonly string[] BundleStores = ["Humble Bundle", "Fanatical"];
+
+    private BundleBrowser? _bundles;
+    private bool _showBundles;
+    private int _bundleCount;
 
     private CatalogPageDto _page = new([], 0, 0, false, null, null);
     private string? _store;
@@ -99,6 +119,8 @@ else
     private Task SelectStoreAsync(string store)
     {
         _store = store;
+        _bundleCount = 0;
+        _showBundles &= BundleStores.Contains(store);
         _page = new([], 0, 0, false, null, null);
         return LoadAsync(true);
     }
@@ -111,7 +133,7 @@ else
         return ApplyAsync();
     }
 
-    private Task RefreshAsync() => LoadAsync(true, refresh: true);
+    private Task RefreshAsync() => _showBundles && _bundles is not null ? _bundles.RefreshAsync() : LoadAsync(true, refresh: true);
 
     private async Task LoadAsync(bool showSpinner, bool refresh = false)
     {

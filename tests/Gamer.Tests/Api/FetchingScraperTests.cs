@@ -166,9 +166,26 @@ public class FetchingScraperTests
             [Offer("C", url: "u3")]);
         FetchingScraper scraper = new("Shop", new ScraperPages((s, q) => string.Empty, s => string.Empty, parser, parser, null, (s, page) => $"{s.BaseUrl}?page={page}"), [fetcher]);
 
-        ScrapeResult result = await scraper.ListCatalogAsync(Shop, 300, CancellationToken.None);
+        ScrapeResult result = await scraper.ListCatalogAsync(Shop, 300, null, CancellationToken.None);
 
         result.Offers.Select(o => o.Title).Should().Equal("A", "B", "C");
+    }
+
+    [Fact]
+    public async Task ListCatalogAsync_ReportsGrowingResultsAfterEachPage()
+    {
+        IPageFetcher fetcher = Returning("<html/>");
+        IOfferParser parser = Substitute.For<IOfferParser>();
+        parser.Parse(Arg.Any<string>(), Arg.Any<Store>()).Returns(
+            [Offer("A", url: "u1")],
+            [Offer("B", url: "u2")],
+            []);
+        FetchingScraper scraper = new("Shop", new ScraperPages((s, q) => string.Empty, s => string.Empty, parser, parser, null, (s, page) => $"{s.BaseUrl}?page={page}"), [fetcher]);
+        List<int> counts = [];
+
+        await scraper.ListCatalogAsync(Shop, 300, partial => counts.Add(partial.Count), CancellationToken.None);
+
+        counts.Should().Equal(1, 2);
     }
 
     [Fact]
@@ -184,7 +201,7 @@ public class FetchingScraperTests
         });
         FetchingScraper scraper = new("Shop", new ScraperPages((s, q) => string.Empty, s => string.Empty, parser, parser, null, (s, p) => $"{s.BaseUrl}?page={p}"), [fetcher]);
 
-        ScrapeResult result = await scraper.ListCatalogAsync(Shop, 3, CancellationToken.None);
+        ScrapeResult result = await scraper.ListCatalogAsync(Shop, 3, null, CancellationToken.None);
 
         result.Offers.Should().HaveCount(3);
     }
@@ -194,7 +211,7 @@ public class FetchingScraperTests
     {
         FetchingScraper scraper = Create(ParserReturning(Offer("Hades")), Returning("<html/>"));
 
-        ScrapeResult result = await scraper.ListCatalogAsync(Shop, 300, CancellationToken.None);
+        ScrapeResult result = await scraper.ListCatalogAsync(Shop, 300, null, CancellationToken.None);
 
         result.IsAvailable.Should().BeFalse();
     }

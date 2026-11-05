@@ -1,0 +1,158 @@
+<div class="overlay" @onclick="OnClose">
+    <div class="sheet bundle-sheet" @onclick:stopPropagation="true">
+        <header class="bundle-sheet-hero" style="@HeroStyle">
+            <div class="bundle-sheet-shade">
+                <button class="icon-btn bundle-close" @onclick="OnClose" aria-label="Fechar"><Icon Name="x" /></button>
+                <div class="bundle-sheet-tags">
+                    <span class="store-tag">@Bundle.Store</span>
+                    @if (DealFormat.TimeLeft(Bundle.EndsAt, DateTimeOffset.UtcNow) is { } left)
+                    {
+                        <span class="bundle-timer"><Icon Name="clock" Size="14" /> @left</span>
+                    }
+                </div>
+                <h2>@Bundle.Title</h2>
+                @if (Bundle.Blurb is { } blurb)
+                {
+                    <p>@blurb</p>
+                }
+                <a class="btn btn-primary" href="@Bundle.Url" target="_blank" rel="noopener noreferrer">Ver na @Bundle.Store <Icon Name="external" Size="16" /></a>
+            </div>
+        </header>
+
+        <section class="tier-picker">
+            <span class="filter-label">@(IsPick ? "Escolhe o pack" : "Quanto queres pagar?")</span>
+            <div class="tiers" style="--progress: @ProgressPercent%; --n: @Bundle.Tiers.Count">
+                <span class="tiers-line"></span>
+                @for (int index = 0; index < Bundle.Tiers.Count; index++)
+                {
+                    int tier = index;
+                    BundleTierDto option = Bundle.Tiers[tier];
+                    <button class="tier @(tier <= _tier ? "reached" : string.Empty) @(tier == _tier ? "on" : string.Empty)" @onclick="() => SelectTier(tier)">
+                        <span class="tier-dot"></span>
+                        <b>@DealFormat.Money(option.Price, Bundle.Currency)</b>
+                        <small>@option.Count @(option.Count == 1 ? "jogo" : "jogos")</small>
+                    </button>
+                }
+            </div>
+        </section>
+
+        <section class="bundle-summary">
+            @if (IsPick)
+            {
+                <div>
+                    <span>Escolheste <b class="pick-count @(_picked.Count == Current.Count ? "full" : string.Empty)">@_picked.Count/@Current.Count</b> jogos por <b>@DealFormat.Money(Current.Price, Bundle.Currency)</b></span>
+                    <span class="muted">≈ @DealFormat.Money(Current.Price / Current.Count, Bundle.Currency) por jogo</span>
+                </div>
+                <span class="muted">@(_picked.Count < Current.Count ? "Toca nos jogos para montares o teu bundle." : "Bundle completo!")</span>
+                @if (_picked.Count > 0)
+                {
+                    <button class="btn" @onclick="_picked.Clear">Limpar</button>
+                }
+            }
+            else
+            {
+                <div>
+                    <span>Por <b>@DealFormat.Money(Current.Price, Bundle.Currency)</b> levas <b>@Current.Count @(Current.Count == 1 ? "jogo" : "jogos")</b></span>
+                    <span class="muted">≈ @DealFormat.Money(Current.Price / Math.Max(Current.Count, 1), Bundle.Currency) por jogo</span>
+                </div>
+                @if (UnlockedValue > Current.Price)
+                {
+                    <div class="bundle-value">
+                        <span class="muted">valem <s>@DealFormat.Money(UnlockedValue, Bundle.Currency)</s></span>
+                        <span class="bundle-saving">poupas @((int)Math.Round((1 - Current.Price / UnlockedValue) * 100))%</span>
+                    </div>
+                }
+            }
+        </section>
+
+        <div class="bundle-games">
+            @foreach ((BundleItemDto item, int index) in Bundle.Items.Select((item, index) => (item, index)))
+            {
+                bool locked = !IsPick && item.Tier > _tier;
+                bool picked = IsPick && _picked.Contains(item.Title);
+                bool full = IsPick && !picked && _picked.Count >= Current.Count;
+                <div @key="item.Title" class="bundle-game @(locked ? "locked" : string.Empty) @(picked ? "picked" : string.Empty) @(full ? "full" : string.Empty) @(IsPick ? "pickable" : string.Empty)"
+                     style="--d: @(Math.Min(index, 20) * 25)ms" @onclick="() => TogglePick(item)">
+                    <div class="bundle-game-cover">
+                        @if (item.ImageUrl is { } cover)
+                        {
+                            <img src="@cover" alt="@item.Title" loading="lazy" referrerpolicy="no-referrer" />
+                        }
+                        else
+                        {
+                            <span class="promo-noimg"><Icon Name="games" Size="28" /></span>
+                        }
+                        @if (locked)
+                        {
+                            <span class="bundle-lock"><Icon Name="lock" Size="18" /> @DealFormat.Money(Bundle.Tiers[item.Tier].Price, Bundle.Currency)</span>
+                        }
+                        @if (picked)
+                        {
+                            <span class="bundle-check"><Icon Name="check" Size="18" /></span>
+                        }
+                        <span class="promo-badges">
+                            @if (item.OnWishlist)
+                            {
+                                <span class="badge badge-wish">Wishlist</span>
+                            }
+                            @if (item.Owned)
+                            {
+                                <span class="badge badge-owned">Já tens</span>
+                            }
+                        </span>
+                    </div>
+                    <div class="bundle-game-body">
+                        <span class="bundle-game-title" title="@item.Title">@item.Title</span>
+                        @if (item.Msrp is > 0)
+                        {
+                            <s class="muted">@DealFormat.Money(item.Msrp.Value, Bundle.Currency)</s>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private readonly List<string> _picked = [];
+    private int _tier;
+
+    [Parameter, EditorRequired]
+    public BundleDto Bundle { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private bool IsPick => Bundle.Kind == BundleKinds.Pick;
+
+    private BundleTierDto Current => Bundle.Tiers[_tier];
+
+    private decimal UnlockedValue => Bundle.Items.Where(i => i.Tier <= _tier).Sum(i => i.Msrp ?? 0);
+
+    private int ProgressPercent => Bundle.Tiers.Count > 1 ? _tier * 100 / (Bundle.Tiers.Count - 1) : 100;
+
+    private string HeroStyle => Bundle.ImageUrl is { } image ? $"background-image: url('{image}')" : string.Empty;
+
+    private void SelectTier(int tier)
+    {
+        _tier = tier;
+        if (_picked.Count > Current.Count)
+        {
+            _picked.RemoveRange(Current.Count, _picked.Count - Current.Count);
+        }
+    }
+
+    private void TogglePick(BundleItemDto item)
+    {
+        if (!IsPick)
+        {
+            return;
+        }
+
+        if (!_picked.Remove(item.Title) && _picked.Count < Current.Count)
+        {
+            _picked.Add(item.Title);
+        }
+    }
+}

@@ -3,6 +3,7 @@ using FluentValidation;
 using Gamer.Api.Data;
 using Gamer.Api.Features.Auth;
 using Gamer.Api.Features.Deals;
+using Gamer.Api.Features.Deals.Bundles;
 using Gamer.Api.Features.Games;
 using Gamer.Api.Features.Import;
 using Gamer.Api.Features.Steam;
@@ -47,6 +48,13 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IPromotionService, PromotionService>();
         services.AddScoped<ICatalogService, CatalogService>();
         services.AddSingleton<CatalogCache>();
+        services.AddSingleton<IEnumerable<IBundleSource>>(provider =>
+        [
+            new HumbleBundleSource(provider.GetRequiredService<HttpPageFetcher>()),
+            new FanaticalBundleSource(provider.GetRequiredService<HttpPageFetcher>()),
+        ]);
+        services.AddSingleton<BundleCache>();
+        services.AddScoped<IBundleService, BundleService>();
         services.AddSingleton<PromotionStatusBoard>();
         services.AddSingleton<RefreshCoordinator>();
         return services;

@@ -2,6 +2,7 @@
 using Gamer.Api.Data;
 using Gamer.Api.Features.Auth;
 using Gamer.Api.Features.Deals;
+using Gamer.Api.Features.Deals.Bundles;
 using Gamer.Api.Features.Games;
 using Gamer.Api.Features.Import;
 using Gamer.Api.Features.Platforms;
@@ -47,6 +48,7 @@ app.MapSteamEndpoints();
 app.MapDealEndpoints();
 app.MapPromotionEndpoints();
 app.MapCatalogEndpoints();
+app.MapBundleEndpoints();
 app.MapFallbackToFile("index.html");
 
 await app.RunAsync();
