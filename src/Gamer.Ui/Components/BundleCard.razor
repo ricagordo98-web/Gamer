@@ -1,3 +1,5 @@
+@inject CartState Cart
+
 <article class="bundle-card" tabindex="0" @onclick="OnOpen" @onkeydown="KeyAsync">
     <div class="bundle-hero">
         @if (Bundle.ImageUrl is { } image)
@@ -5,6 +7,10 @@
             <img src="@image" alt="@Bundle.Title" loading="lazy" referrerpolicy="no-referrer" />
         }
         <span class="bundle-kind"><Icon Name="gift" Size="14" /> @KindLabel</span>
+        @if (Cart.Find(CartKinds.Bundle, Bundle.Url) is not null)
+        {
+            <span class="bundle-in-cart"><Icon Name="cart" Size="14" /> Nas Compras</span>
+        }
         @if (DealFormat.TimeLeft(Bundle.EndsAt, DateTimeOffset.UtcNow) is { } left)
         {
             <span class="bundle-timer @(Urgent ? "urgent" : string.Empty)"><Icon Name="clock" Size="14" /> @left</span>
@@ -76,7 +82,7 @@
     private int OwnedCount => Bundle.Items.Count(i => i.Owned);
 
     private string KindLabel => Bundle.Kind == BundleKinds.Pick
-        ? $"Escolhe {Bundle.Tiers.Min(t => t.Count)}+"
+        ? $"Escolhe até {Bundle.Tiers.Max(t => t.Count)}"
         : $"{Bundle.Tiers.Count} níveis";
 
     private bool Urgent => Bundle.EndsAt is { } end && end - DateTimeOffset.UtcNow < TimeSpan.FromDays(2);

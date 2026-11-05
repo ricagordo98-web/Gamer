@@ -13,5 +13,6 @@ public class Promotion
     public int DiscountPercent { get; set; }
     public required string Url { get; set; }
     public required string Currency { get; set; }
+    public DateTimeOffset? EndsAt { get; set; }
     public DateTimeOffset CapturedAt { get; set; }
 }

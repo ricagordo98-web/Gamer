@@ -33,6 +33,61 @@ namespace Gamer.Api.Data.Migrations
                     b.ToTable("AppSettings");
                 });
 
+            modelBuilder.Entity("Gamer.Api.Domain.CartItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset>("AddedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("EndsAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ImageUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("OriginalPrice")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("Price")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Store")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Url")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Kind", "Url")
+                        .IsUnique();
+
+                    b.ToTable("CartItems");
+                });
+
             modelBuilder.Entity("Gamer.Api.Domain.Game", b =>
                 {
                     b.Property<int>("Id")
@@ -291,6 +346,9 @@ namespace Gamer.Api.Data.Migrations
                     b.Property<int>("DiscountPercent")
                         .HasColumnType("INTEGER");
 
+                    b.Property<DateTimeOffset?>("EndsAt")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("ImageUrl")
                         .HasMaxLength(1000)
                         .HasColumnType("TEXT");
@@ -483,6 +541,33 @@ namespace Gamer.Api.Data.Migrations
                     b.HasKey("AppId");
 
                     b.ToTable("Wishlist");
+                });
+
+            modelBuilder.Entity("Gamer.Api.Domain.CartItem", b =>
+                {
+                    b.OwnsMany("Gamer.Api.Domain.CartGame", "Games", b1 =>
+                        {
+                            b1.Property<int>("CartItemId");
+
+                            b1.Property<int>("__synthesizedOrdinal")
+                                .ValueGeneratedOnAddOrUpdate();
+
+                            b1.Property<string>("ImageUrl");
+
+                            b1.Property<string>("Title")
+                                .IsRequired();
+
+                            b1.HasKey("CartItemId", "__synthesizedOrdinal");
+
+                            b1.ToTable("CartItems");
+
+                            b1.ToJson("Games");
+
+                            b1.WithOwner()
+                                .HasForeignKey("CartItemId");
+                        });
+
+                    b.Navigation("Games");
                 });
 
             modelBuilder.Entity("Gamer.Api.Domain.Game", b =>

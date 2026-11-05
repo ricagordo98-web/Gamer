@@ -104,6 +104,15 @@ public class GamerApiClient(HttpClient http) : IGamerApi
     public Task<BundlePageDto> GetBundlesAsync(string store, bool refresh, CancellationToken cancellationToken) =>
         SendAsync<BundlePageDto>(() => http.GetAsync($"api/bundles?store={Uri.EscapeDataString(store)}&refresh={refresh}", cancellationToken), cancellationToken);
 
+    public async Task<IReadOnlyList<CartItemDto>> GetCartAsync(CancellationToken cancellationToken) =>
+        await SendAsync<List<CartItemDto>>(() => http.GetAsync("api/cart", cancellationToken), cancellationToken);
+
+    public Task<CartItemDto> SaveCartItemAsync(CartItemRequest request, CancellationToken cancellationToken) =>
+        SendAsync<CartItemDto>(() => http.PostAsJsonAsync("api/cart", request, cancellationToken), cancellationToken);
+
+    public async Task DeleteCartItemAsync(int id, CancellationToken cancellationToken) =>
+        await SendAsync(() => http.DeleteAsync($"api/cart/{id}", cancellationToken), cancellationToken);
+
     private static string PromotionQueryString(PromotionQuery query)
     {
         List<string> parts =

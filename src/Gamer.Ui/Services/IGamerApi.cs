@@ -32,5 +32,8 @@ public interface IGamerApi
     Task<RefreshStatusDto> RefreshPromotionsAsync(CancellationToken cancellationToken);
     Task<CatalogPageDto> GetCatalogAsync(CatalogQuery query, bool refresh, CancellationToken cancellationToken);
     Task<BundlePageDto> GetBundlesAsync(string store, bool refresh, CancellationToken cancellationToken);
+    Task<IReadOnlyList<CartItemDto>> GetCartAsync(CancellationToken cancellationToken);
+    Task<CartItemDto> SaveCartItemAsync(CartItemRequest request, CancellationToken cancellationToken);
+    Task DeleteCartItemAsync(int id, CancellationToken cancellationToken);
     Task<bool> PingAsync(CancellationToken cancellationToken);
 }

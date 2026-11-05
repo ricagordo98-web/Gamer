@@ -1,4 +1,11 @@
+@implements IDisposable
+@inject CartState Cart
+
 <article class="promo">
+    <button class="cart-toggle @(InCart is null ? string.Empty : "on")" @onclick="ToggleCartAsync" disabled="@_saving"
+            title="@(InCart is null ? "Adicionar às Compras" : "Remover das Compras")">
+        <Icon Name="@(InCart is null ? "cart-plus" : "check")" Size="18" />
+    </button>
     <a class="promo-cover" href="@Item.Best.Url" target="_blank" rel="noopener noreferrer" title="Abrir na @Item.Best.Store">
         @if (Item.ImageUrl is { } image)
         {
@@ -47,6 +54,11 @@
             <span class="store-tag">@Item.Best.Store</span>
         </div>
 
+        @if (DealFormat.TimeLeft(Item.Best.EndsAt, DateTimeOffset.UtcNow) is { } left)
+        {
+            <span class="promo-ends"><Icon Name="clock" Size="13" /> @left</span>
+        }
+
         @if (Item.Others.Count > 0)
         {
             <div class="promo-others">
@@ -63,4 +75,30 @@
 @code {
     [Parameter, EditorRequired]
     public PromotionDto Item { get; set; } = null!;
+
+    private bool _saving;
+
+    private CartItemDto? InCart => Cart.Find(CartKinds.Game, Item.Best.Url);
+
+    protected override void OnInitialized() => Cart.Changed += OnCartChanged;
+
+    public void Dispose() => Cart.Changed -= OnCartChanged;
+
+    private void OnCartChanged() => InvokeAsync(StateHasChanged);
+
+    private async Task ToggleCartAsync()
+    {
+        _saving = true;
+        if (InCart is { } existing)
+        {
+            await Cart.RemoveAsync(existing.Id);
+        }
+        else
+        {
+            OfferDto best = Item.Best;
+            await Cart.SaveAsync(new CartItemRequest(CartKinds.Game, best.Store, Item.Title, best.Url, Item.ImageUrl, best.Price, best.OriginalPrice, best.Currency, best.EndsAt, null));
+        }
+
+        _saving = false;
+    }
 }

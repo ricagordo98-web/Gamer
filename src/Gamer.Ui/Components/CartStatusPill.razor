@@ -1,0 +1,30 @@
+@switch (Item.Status)
+{
+    case CartStatuses.Ended:
+        <span class="cart-pill ended"><Icon Name="x" Size="13" /> Promoção terminou</span>
+        break;
+    case CartStatuses.PriceUp:
+        <span class="cart-pill ended">Subiu para @DealFormat.Money(Item.CurrentPrice ?? Item.Price, Item.Currency)</span>
+        break;
+    case CartStatuses.PriceDown:
+        <span class="cart-pill good">Desceu para @DealFormat.Money(Item.CurrentPrice ?? Item.Price, Item.Currency)</span>
+        break;
+    case CartStatuses.EndingSoon:
+        <span class="cart-pill urgent"><Icon Name="clock" Size="13" /> @(DealFormat.TimeLeft(Item.EndsAt, DateTimeOffset.UtcNow) ?? "Acaba em breve")</span>
+        break;
+    default:
+        @if (DealFormat.TimeLeft(Item.EndsAt, DateTimeOffset.UtcNow) is { } left)
+        {
+            <span class="cart-pill"><Icon Name="clock" Size="13" /> @left</span>
+        }
+        else
+        {
+            <span class="cart-pill muted-pill">Sem data de fim</span>
+        }
+        break;
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public CartItemDto Item { get; set; } = null!;
+}

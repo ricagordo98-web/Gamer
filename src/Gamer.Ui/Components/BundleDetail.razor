@@ -1,3 +1,5 @@
+@inject CartState Cart
+
 <div class="overlay" @onclick="OnClose">
     <div class="sheet bundle-sheet" @onclick:stopPropagation="true">
         <header class="bundle-sheet-hero" style="@HeroStyle">
@@ -8,6 +10,10 @@
                     @if (DealFormat.TimeLeft(Bundle.EndsAt, DateTimeOffset.UtcNow) is { } left)
                     {
                         <span class="bundle-timer"><Icon Name="clock" Size="14" /> @left</span>
+                    }
+                    @if (_inCart is not null)
+                    {
+                        <span class="bundle-timer"><Icon Name="cart" Size="14" /> Nas Compras</span>
                     }
                 </div>
                 <h2>@Bundle.Title</h2>
@@ -20,14 +26,14 @@
         </header>
 
         <section class="tier-picker">
-            <span class="filter-label">@(IsPick ? "Escolhe o pack" : "Quanto queres pagar?")</span>
+            <span class="filter-label">@(IsPick ? "Packs disponíveis" : "Quanto queres pagar?")</span>
             <div class="tiers" style="--progress: @ProgressPercent%; --n: @Bundle.Tiers.Count">
                 <span class="tiers-line"></span>
                 @for (int index = 0; index < Bundle.Tiers.Count; index++)
                 {
                     int tier = index;
                     BundleTierDto option = Bundle.Tiers[tier];
-                    <button class="tier @(tier <= _tier ? "reached" : string.Empty) @(tier == _tier ? "on" : string.Empty)" @onclick="() => SelectTier(tier)">
+                    <button class="tier @(tier <= TierIndex ? "reached" : string.Empty) @(tier == TierIndex ? "on" : string.Empty)" @onclick="() => SelectTier(tier)" disabled="@IsPick">
                         <span class="tier-dot"></span>
                         <b>@DealFormat.Money(option.Price, Bundle.Currency)</b>
                         <small>@option.Count @(option.Count == 1 ? "jogo" : "jogos")</small>
@@ -40,14 +46,17 @@
             @if (IsPick)
             {
                 <div>
-                    <span>Escolheste <b class="pick-count @(_picked.Count == Current.Count ? "full" : string.Empty)">@_picked.Count/@Current.Count</b> jogos por <b>@DealFormat.Money(Current.Price, Bundle.Currency)</b></span>
-                    <span class="muted">≈ @DealFormat.Money(Current.Price / Current.Count, Bundle.Currency) por jogo</span>
+                    @if (_picked.Count == 0)
+                    {
+                        <span>Toca nos jogos que queres para montares o teu bundle.</span>
+                        <span class="muted">Podes escolher até @MaxPicks jogos.</span>
+                    }
+                    else
+                    {
+                        <span>Escolheste <b class="pick-count @(Spare == 0 ? "full" : string.Empty)">@_picked.Count</b> → pack de <b>@Pack.Count</b> por <b>@DealFormat.Money(Pack.Price, Bundle.Currency)</b></span>
+                        <span class="muted">@(Spare > 0 ? $"Ainda podes juntar mais {Spare} sem pagar mais." : $"≈ {DealFormat.Money(Pack.Price / Pack.Count, Bundle.Currency)} por jogo")</span>
+                    }
                 </div>
-                <span class="muted">@(_picked.Count < Current.Count ? "Toca nos jogos para montares o teu bundle." : "Bundle completo!")</span>
-                @if (_picked.Count > 0)
-                {
-                    <button class="btn" @onclick="_picked.Clear">Limpar</button>
-                }
             }
             else
             {
@@ -63,6 +72,19 @@
                     </div>
                 }
             }
+            <div class="bundle-cart-actions">
+                @if (IsPick && _picked.Count > 0)
+                {
+                    <button class="btn" @onclick="_picked.Clear">Limpar</button>
+                }
+                @if (_inCart is not null)
+                {
+                    <button class="btn btn-danger" @onclick="RemoveAsync" disabled="@_saving">Remover</button>
+                }
+                <button class="btn btn-primary" @onclick="SaveAsync" disabled="@(_saving || (IsPick && _picked.Count == 0))">
+                    <Icon Name="cart-plus" Size="18" /> @(_inCart is null ? "Adicionar às Compras" : "Atualizar nas Compras")
+                </button>
+            </div>
         </section>
 
         <div class="bundle-games">
@@ -70,7 +92,7 @@
             {
                 bool locked = !IsPick && item.Tier > _tier;
                 bool picked = IsPick && _picked.Contains(item.Title);
-                bool full = IsPick && !picked && _picked.Count >= Current.Count;
+                bool full = IsPick && !picked && _picked.Count >= MaxPicks;
                 <div @key="item.Title" class="bundle-game @(locked ? "locked" : string.Empty) @(picked ? "picked" : string.Empty) @(full ? "full" : string.Empty) @(IsPick ? "pickable" : string.Empty)"
                      style="--d: @(Math.Min(index, 20) * 25)ms" @onclick="() => TogglePick(item)">
                     <div class="bundle-game-cover">
@@ -117,6 +139,8 @@
 @code {
     private readonly List<string> _picked = [];
     private int _tier;
+    private bool _saving;
+    private CartItemDto? _inCart;
 
     [Parameter, EditorRequired]
     public BundleDto Bundle { get; set; } = null!;
@@ -126,22 +150,40 @@
 
     private bool IsPick => Bundle.Kind == BundleKinds.Pick;
 
+    private int MaxPicks => BundlePricing.MaxPicks(Bundle.Tiers);
+
+    private BundleTierDto Pack => BundlePricing.PackFor(Bundle.Tiers, _picked.Count);
+
+    private int Spare => Pack.Count - _picked.Count;
+
+    private int TierIndex => IsPick ? (_picked.Count == 0 ? -1 : IndexOf(Pack)) : _tier;
+
     private BundleTierDto Current => Bundle.Tiers[_tier];
 
     private decimal UnlockedValue => Bundle.Items.Where(i => i.Tier <= _tier).Sum(i => i.Msrp ?? 0);
 
-    private int ProgressPercent => Bundle.Tiers.Count > 1 ? _tier * 100 / (Bundle.Tiers.Count - 1) : 100;
+    private int ProgressPercent => TierIndex < 0 ? 0 : Bundle.Tiers.Count > 1 ? TierIndex * 100 / (Bundle.Tiers.Count - 1) : 100;
 
     private string HeroStyle => Bundle.ImageUrl is { } image ? $"background-image: url('{image}')" : string.Empty;
 
-    private void SelectTier(int tier)
+    protected override void OnInitialized()
     {
-        _tier = tier;
-        if (_picked.Count > Current.Count)
+        _inCart = Cart.Find(CartKinds.Bundle, Bundle.Url);
+        if (_inCart is null)
         {
-            _picked.RemoveRange(Current.Count, _picked.Count - Current.Count);
+            return;
         }
+
+        HashSet<string> saved = _inCart.Games.Select(g => g.Title).ToHashSet();
+        _picked.Clear();
+        _picked.AddRange(Bundle.Items.Where(i => saved.Contains(i.Title)).Select(i => i.Title).Take(MaxPicks));
+        int tier = Bundle.Tiers.ToList().FindIndex(t => t.Price == _inCart.Price);
+        _tier = tier >= 0 ? tier : _tier;
     }
+
+    private int IndexOf(BundleTierDto tier) => Bundle.Tiers.ToList().IndexOf(tier);
+
+    private void SelectTier(int tier) => _tier = tier;
 
     private void TogglePick(BundleItemDto item)
     {
@@ -150,9 +192,41 @@
             return;
         }
 
-        if (!_picked.Remove(item.Title) && _picked.Count < Current.Count)
+        if (!_picked.Remove(item.Title) && _picked.Count < MaxPicks)
         {
             _picked.Add(item.Title);
         }
+    }
+
+    private async Task SaveAsync()
+    {
+        List<BundleItemDto> games = IsPick
+            ? Bundle.Items.Where(i => _picked.Contains(i.Title)).ToList()
+            : Bundle.Items.Where(i => i.Tier <= _tier).ToList();
+        BundleTierDto price = IsPick ? Pack : Current;
+        decimal value = games.Sum(g => g.Msrp ?? 0);
+
+        _saving = true;
+        bool saved = await Cart.SaveAsync(new CartItemRequest(
+            CartKinds.Bundle, Bundle.Store, Bundle.Title, Bundle.Url, Bundle.ImageUrl, price.Price, Math.Max(value, price.Price), Bundle.Currency, Bundle.EndsAt,
+            games.Select(g => new CartGameDto(g.Title, g.ImageUrl)).ToList()));
+        _saving = false;
+        if (saved)
+        {
+            _inCart = Cart.Find(CartKinds.Bundle, Bundle.Url);
+        }
+    }
+
+    private async Task RemoveAsync()
+    {
+        if (_inCart is null)
+        {
+            return;
+        }
+
+        _saving = true;
+        await Cart.RemoveAsync(_inCart.Id);
+        _inCart = null;
+        _saving = false;
     }
 }

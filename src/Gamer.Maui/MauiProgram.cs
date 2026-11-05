@@ -17,6 +17,9 @@ public static class MauiProgram
 
         builder.Services.AddMauiBlazorWebView();
         builder.Services.AddSingleton<IKeyValueStore, PreferencesKeyValueStore>();
+#if WINDOWS
+        builder.Services.AddSingleton<ISystemNotifier, WinUI.WindowsSystemNotifier>();
+#endif
         builder.Services.AddGamerUi(DeviceInfo.Platform == DevicePlatform.Android ? AndroidEmulatorServerUrl : DesktopServerUrl);
 
 #if DEBUG

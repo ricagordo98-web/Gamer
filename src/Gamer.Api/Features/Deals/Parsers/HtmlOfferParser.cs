@@ -5,7 +5,7 @@ using Gamer.Api.Domain;
 
 namespace Gamer.Api.Features.Deals.Parsers;
 
-public record HtmlSelectors(string Item, string Name, string Price, string OriginalPrice, string Link, string Image, string Discount = "");
+public record HtmlSelectors(string Item, string Name, string Price, string OriginalPrice, string Link, string Image, string Discount = "", string Countdown = "");
 
 public partial class HtmlOfferParser(HtmlSelectors selectors, Func<string, string>? normalizeName = null) : IOfferParser
 {
@@ -29,7 +29,7 @@ public partial class HtmlOfferParser(HtmlSelectors selectors, Func<string, strin
             }
 
             decimal original = ReadOriginalPrice(item, price);
-            offers.Add(new StoreOffer(store.Name, name, price, original, ReadUrl(item, baseUri, store), store.Currency, ReadImage(item, baseUri)));
+            offers.Add(new StoreOffer(store.Name, name, price, original, ReadUrl(item, baseUri, store), store.Currency, ReadImage(item, baseUri), ReadEnd(item)));
         }
 
         return offers;
@@ -64,6 +64,9 @@ public partial class HtmlOfferParser(HtmlSelectors selectors, Func<string, strin
 
         return price;
     }
+
+    private DateTimeOffset? ReadEnd(IElement item) =>
+        selectors.Countdown.Length == 0 ? null : CountdownParser.Parse(item.QuerySelector(selectors.Countdown)?.TextContent, DateTimeOffset.UtcNow);
 
     private string ReadUrl(IElement item, Uri baseUri, Store store)
     {

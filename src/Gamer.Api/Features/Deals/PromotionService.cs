@@ -80,6 +80,7 @@ public class PromotionService(GamerDbContext db, IEnumerable<IStoreScraper> scra
                 DiscountPercent = o.DiscountPercent,
                 Url = o.Url,
                 Currency = o.Currency,
+                EndsAt = o.EndsAt,
                 CapturedAt = now,
             })
             .Where(p => p.TitleKey.Length > 0)
@@ -128,7 +129,7 @@ public class PromotionService(GamerDbContext db, IEnumerable<IStoreScraper> scra
     }
 
     private static OfferDto ToOffer(Promotion p) =>
-        new(p.Store.Name, p.Title, p.Price, p.OriginalPrice, p.DiscountPercent, p.Url, p.Currency, p.ImageUrl);
+        new(p.Store.Name, p.Title, p.Price, p.OriginalPrice, p.DiscountPercent, p.Url, p.Currency, p.ImageUrl, p.EndsAt);
 
     private static bool Matches(PromotionDto item, PromotionQuery query)
     {

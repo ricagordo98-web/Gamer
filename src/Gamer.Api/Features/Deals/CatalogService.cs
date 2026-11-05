@@ -53,7 +53,7 @@ public class CatalogService(GamerDbContext db, IEnumerable<IStoreScraper> scrape
     private static PromotionDto ToItem(StoreOffer offer, HashSet<string> library, HashSet<string> wishlist)
     {
         string key = TitleMatcher.Normalize(offer.Title);
-        OfferDto dto = new(offer.Store, offer.Title, offer.Price, offer.OriginalPrice, offer.DiscountPercent, offer.Url, offer.Currency, offer.ImageUrl);
+        OfferDto dto = new(offer.Store, offer.Title, offer.Price, offer.OriginalPrice, offer.DiscountPercent, offer.Url, offer.Currency, offer.ImageUrl, offer.EndsAt);
         return new PromotionDto(offer.Title, offer.ImageUrl, dto, offer.OriginalPrice - offer.Price, [], library.Contains(key), wishlist.Contains(key), ExtraContent.IsExtra(offer.Title));
     }
 

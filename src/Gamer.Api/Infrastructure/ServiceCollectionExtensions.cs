@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using FluentValidation;
 using Gamer.Api.Data;
+using Gamer.Api.Features.Cart;
 using Gamer.Api.Features.Auth;
 using Gamer.Api.Features.Deals;
 using Gamer.Api.Features.Deals.Bundles;
@@ -55,6 +56,7 @@ public static class ServiceCollectionExtensions
         ]);
         services.AddSingleton<BundleCache>();
         services.AddScoped<IBundleService, BundleService>();
+        services.AddScoped<ICartService, CartService>();
         services.AddSingleton<PromotionStatusBoard>();
         services.AddSingleton<RefreshCoordinator>();
         return services;

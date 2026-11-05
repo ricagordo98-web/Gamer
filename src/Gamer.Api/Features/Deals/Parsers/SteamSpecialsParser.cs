@@ -56,7 +56,10 @@ public class SteamSpecialsParser : IOfferParser
 
         id = idElement.GetInt64();
         string currency = item.TryGetProperty("currency", out JsonElement cur) ? cur.GetString() ?? store.Currency : store.Currency;
-        offer = new StoreOffer(store.Name, name.GetString() ?? string.Empty, final.GetInt64() / 100m, original.GetInt64() / 100m, $"{store.BaseUrl}app/{id}", currency, SteamImages.Header(id));
+        DateTimeOffset? endsAt = item.TryGetProperty("discount_expiration", out JsonElement expiration) && expiration.TryGetInt64(out long seconds) && seconds > 0
+            ? DateTimeOffset.FromUnixTimeSeconds(seconds)
+            : null;
+        offer = new StoreOffer(store.Name, name.GetString() ?? string.Empty, final.GetInt64() / 100m, original.GetInt64() / 100m, $"{store.BaseUrl}app/{id}", currency, SteamImages.Header(id), endsAt);
         return true;
     }
 }

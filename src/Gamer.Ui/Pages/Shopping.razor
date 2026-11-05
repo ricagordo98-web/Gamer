@@ -1,0 +1,204 @@
+@page "/cart"
+@implements IDisposable
+@inject CartState Cart
+@inject IGamerApi Api
+@inject ToastService Toasts
+
+<header class="page-header">
+    <h1>Compras <small>@Cart.Items.Count</small></h1>
+    <button class="btn" @onclick="ReloadAsync" disabled="@_loading">
+        <Icon Name="refresh" Size="18" /> @(_loading ? "A atualizar…" : "Atualizar")
+    </button>
+</header>
+
+@if (Cart.Items.Count == 0)
+{
+    <div class="empty">
+        <Icon Name="cart" Size="40" />
+        <p>Ainda não tens nada nas Compras.</p>
+        <p class="muted">Usa o botão do carrinho nos jogos das Promoções e das Lojas, ou abre um bundle e adiciona-o.</p>
+    </div>
+}
+else
+{
+    <section class="cart-summary">
+        <div><span class="muted">Total</span><strong>@DealFormat.Money(Total, Currency)</strong></div>
+        <div><span class="muted">Jogos</span><strong>@GameCount</strong></div>
+        @if (Saving > 0)
+        {
+            <div><span class="muted">Poupas</span><strong class="promo-saving">@DealFormat.Money(Saving, Currency)</strong></div>
+        }
+        @if (Cart.AlertCount > 0)
+        {
+            <div><span class="muted">Avisos</span><strong class="cart-alert-count">@Cart.AlertCount</strong></div>
+        }
+    </section>
+
+    @if (Alerts.Count > 0)
+    {
+        <section class="cart-alerts">
+            @foreach (CartAlert alert in Alerts)
+            {
+                <div class="cart-alert @(alert.Good ? "good" : string.Empty)">
+                    <Icon Name="@(alert.Good ? "tag" : "clock")" Size="18" />
+                    <span><b>@alert.Title</b> @alert.Message</span>
+                </div>
+            }
+        </section>
+    }
+
+    @if (Bundles.Count > 0)
+    {
+        <h2 class="section-title">Bundles</h2>
+        <div class="cart-bundles">
+            @foreach (CartItemDto bundle in Bundles)
+            {
+                <article class="cart-bundle @(bundle.Status == CartStatuses.Ended ? "is-ended" : string.Empty)">
+                    <div class="cart-bundle-head">
+                        @if (bundle.ImageUrl is { } image)
+                        {
+                            <img class="cart-bundle-img" src="@image" alt="@bundle.Title" loading="lazy" referrerpolicy="no-referrer" />
+                        }
+                        <div class="cart-bundle-info">
+                            <div class="cart-tags"><span class="store-tag">@bundle.Store</span><CartStatusPill Item="bundle" /></div>
+                            <h3>@bundle.Title</h3>
+                            <div class="cart-price">
+                                <strong>@DealFormat.Money(bundle.Price, bundle.Currency)</strong>
+                                @if (bundle.OriginalPrice > bundle.Price)
+                                {
+                                    <s class="muted">@DealFormat.Money(bundle.OriginalPrice, bundle.Currency)</s>
+                                }
+                                <span class="muted">· @bundle.Games.Count @(bundle.Games.Count == 1 ? "jogo" : "jogos")</span>
+                            </div>
+                        </div>
+                        <div class="cart-actions">
+                            <button class="btn" @onclick="() => EditBundleAsync(bundle)" disabled="@(_opening == bundle.Id)">@(_opening == bundle.Id ? "A abrir…" : "Editar")</button>
+                            <a class="btn" href="@bundle.Url" target="_blank" rel="noopener noreferrer"><Icon Name="external" Size="16" /></a>
+                            <button class="btn btn-danger" @onclick="() => Cart.RemoveAsync(bundle.Id)" title="Remover"><Icon Name="trash" Size="16" /></button>
+                        </div>
+                    </div>
+                    <div class="cart-bundle-games">
+                        @foreach (CartGameDto game in bundle.Games)
+                        {
+                            <div class="cart-mini" title="@game.Title">
+                                @if (game.ImageUrl is { } cover)
+                                {
+                                    <img src="@cover" alt="@game.Title" loading="lazy" referrerpolicy="no-referrer" />
+                                }
+                                <span>@game.Title</span>
+                            </div>
+                        }
+                    </div>
+                </article>
+            }
+        </div>
+    }
+
+    @if (Games.Count > 0)
+    {
+        <h2 class="section-title">Jogos</h2>
+        <div class="cart-games">
+            @foreach (CartItemDto game in Games)
+            {
+                <article class="cart-game @(game.Status is CartStatuses.Ended or CartStatuses.PriceUp ? "is-ended" : string.Empty)">
+                    <a class="cart-game-cover" href="@game.Url" target="_blank" rel="noopener noreferrer">
+                        @if (game.ImageUrl is { } cover)
+                        {
+                            <img src="@cover" alt="@game.Title" loading="lazy" referrerpolicy="no-referrer" />
+                        }
+                        else
+                        {
+                            <span class="promo-noimg"><Icon Name="games" Size="28" /></span>
+                        }
+                    </a>
+                    <div class="cart-game-body">
+                        <span class="promo-title" title="@game.Title">@game.Title</span>
+                        <div class="cart-price">
+                            <strong>@DealFormat.Money(game.Price, game.Currency)</strong>
+                            @if (game.OriginalPrice > game.Price)
+                            {
+                                <s class="muted">@DealFormat.Money(game.OriginalPrice, game.Currency)</s>
+                            }
+                        </div>
+                        <div class="cart-tags"><span class="store-tag">@game.Store</span><CartStatusPill Item="game" /></div>
+                    </div>
+                    <button class="icon-btn cart-remove" @onclick="() => Cart.RemoveAsync(game.Id)" title="Remover"><Icon Name="trash" Size="18" /></button>
+                </article>
+            }
+        </div>
+    }
+}
+
+@if (_editing is not null)
+{
+    <BundleDetail Bundle="_editing" OnClose="() => _editing = null" />
+}
+
+@code {
+    private bool _loading;
+    private int? _opening;
+    private BundleDto? _editing;
+
+    private List<CartItemDto> Bundles => Cart.Items.Where(i => i.Kind == CartKinds.Bundle).ToList();
+
+    private List<CartItemDto> Games => Cart.Items.Where(i => i.Kind == CartKinds.Game).ToList();
+
+    private string Currency => Cart.Items.FirstOrDefault()?.Currency ?? "EUR";
+
+    private decimal Total => Cart.Items.Where(i => i.Status != CartStatuses.Ended).Sum(i => i.CurrentPrice ?? i.Price);
+
+    private decimal Saving => Cart.Items.Where(i => i.Status != CartStatuses.Ended).Sum(i => Math.Max(i.OriginalPrice - (i.CurrentPrice ?? i.Price), 0));
+
+    private int GameCount => Cart.Items.Sum(i => i.Kind == CartKinds.Bundle ? i.Games.Count : 1);
+
+    private List<CartAlert> Alerts => Cart.Items.Select(i => CartAlerts.For(i, DateTimeOffset.UtcNow)).OfType<CartAlert>().ToList();
+
+    protected override Task OnInitializedAsync()
+    {
+        Cart.Changed += OnCartChanged;
+        return ReloadAsync();
+    }
+
+    public void Dispose() => Cart.Changed -= OnCartChanged;
+
+    private void OnCartChanged() => InvokeAsync(StateHasChanged);
+
+    private async Task ReloadAsync()
+    {
+        _loading = true;
+        try
+        {
+            await Cart.LoadAsync(CancellationToken.None);
+        }
+        catch (ApiException exception)
+        {
+            Toasts.Error(exception.Message);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task EditBundleAsync(CartItemDto item)
+    {
+        _opening = item.Id;
+        try
+        {
+            BundlePageDto page = await Api.GetBundlesAsync(item.Store, false, CancellationToken.None);
+            _editing = page.Items.FirstOrDefault(b => b.Url == item.Url);
+            if (_editing is null)
+            {
+                Toasts.Error(page.Loading ? "Os bundles ainda estão a carregar, tenta daqui a pouco." : "Este bundle já não está disponível na loja.");
+            }
+        }
+        catch (ApiException exception)
+        {
+            Toasts.Error(exception.Message);
+        }
+        finally
+        {
+            _opening = null;
+        }
+    }
+}

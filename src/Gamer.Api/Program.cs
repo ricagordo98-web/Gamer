@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.StaticFiles;
 using Gamer.Api.Data;
 using Gamer.Api.Features.Auth;
+using Gamer.Api.Features.Cart;
 using Gamer.Api.Features.Deals;
 using Gamer.Api.Features.Deals.Bundles;
 using Gamer.Api.Features.Games;
@@ -49,6 +50,7 @@ app.MapDealEndpoints();
 app.MapPromotionEndpoints();
 app.MapCatalogEndpoints();
 app.MapBundleEndpoints();
+app.MapCartEndpoints();
 app.MapFallbackToFile("index.html");
 
 await app.RunAsync();

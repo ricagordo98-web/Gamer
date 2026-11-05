@@ -14,6 +14,7 @@ public class GamerDbContext(DbContextOptions<GamerDbContext> options) : DbContex
     public DbSet<TrackedGame> TrackedGames => Set<TrackedGame>();
     public DbSet<PriceSnapshot> PriceSnapshots => Set<PriceSnapshot>();
     public DbSet<Promotion> Promotions => Set<Promotion>();
+    public DbSet<CartItem> CartItems => Set<CartItem>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -94,6 +95,18 @@ public class GamerDbContext(DbContextOptions<GamerDbContext> options) : DbContex
             promotion.HasOne(p => p.Store).WithMany().HasForeignKey(p => p.StoreId).OnDelete(DeleteBehavior.Cascade);
             promotion.HasIndex(p => new { p.StoreId, p.Url }).IsUnique();
             promotion.HasIndex(p => p.TitleKey);
+        });
+
+        modelBuilder.Entity<CartItem>(item =>
+        {
+            item.Property(i => i.Kind).HasMaxLength(20);
+            item.Property(i => i.Store).HasMaxLength(100);
+            item.Property(i => i.Title).HasMaxLength(300);
+            item.Property(i => i.Url).HasMaxLength(1000);
+            item.Property(i => i.ImageUrl).HasMaxLength(1000);
+            item.Property(i => i.Currency).HasMaxLength(10);
+            item.HasIndex(i => new { i.Kind, i.Url }).IsUnique();
+            item.OwnsMany(i => i.Games, games => games.ToJson());
         });
     }
 }

@@ -2,6 +2,8 @@
 @implements IDisposable
 @inject AuthSession Session
 @inject GameLibrary Library
+@inject CartState Cart
+@inject AlertMonitor Alerts
 @inject NavigationManager Navigation
 
 @if (_ready && Session.IsAuthenticated)
@@ -14,6 +16,7 @@
                 <NavLink class="nav-item" href="games"><Icon Name="games" /> Jogos</NavLink>
                 <NavLink class="nav-item" href="promotions"><Icon Name="tag" /> Promoções</NavLink>
                 <NavLink class="nav-item" href="stores"><Icon Name="store" /> Lojas</NavLink>
+                <NavLink class="nav-item" href="cart"><Icon Name="cart" /> Compras @CartBadge</NavLink>
                 <NavLink class="nav-item" href="deals"><Icon Name="search" /> Comparar</NavLink>
                 <NavLink class="nav-item" href="steam"><Icon Name="library" /> Steam</NavLink>
                 <NavLink class="nav-item" href="settings"><Icon Name="settings" /> Definições</NavLink>
@@ -27,6 +30,7 @@
             <NavLink class="tab" href="games"><Icon Name="games" Size="22" /><span>Jogos</span></NavLink>
             <NavLink class="tab" href="promotions"><Icon Name="tag" Size="22" /><span>Promoções</span></NavLink>
             <NavLink class="tab" href="stores"><Icon Name="store" Size="22" /><span>Lojas</span></NavLink>
+            <NavLink class="tab" href="cart"><Icon Name="cart" Size="22" /><span>Compras</span>@CartBadge</NavLink>
             <NavLink class="tab" href="deals"><Icon Name="search" Size="22" /><span>Comparar</span></NavLink>
             <NavLink class="tab" href="steam"><Icon Name="library" Size="22" /><span>Steam</span></NavLink>
             <NavLink class="tab" href="settings"><Icon Name="settings" Size="22" /><span>Definições</span></NavLink>
@@ -40,27 +44,50 @@
     protected override async Task OnInitializedAsync()
     {
         Session.Changed += OnSessionChanged;
+        Cart.Changed += OnCartChanged;
         await Session.InitializeAsync();
         _ready = true;
 
         if (!Session.IsAuthenticated)
         {
             Navigation.NavigateTo("login");
+            return;
         }
+
+        Alerts.Start();
     }
 
-    public void Dispose() => Session.Changed -= OnSessionChanged;
+    private RenderFragment CartBadge => builder =>
+    {
+        if (Cart.AlertCount > 0)
+        {
+            builder.OpenElement(0, "span");
+            builder.AddAttribute(1, "class", "nav-badge");
+            builder.AddContent(2, Cart.AlertCount);
+            builder.CloseElement();
+        }
+    };
+
+    public void Dispose()
+    {
+        Session.Changed -= OnSessionChanged;
+        Cart.Changed -= OnCartChanged;
+    }
+
+    private void OnCartChanged() => InvokeAsync(StateHasChanged);
 
     private void OnSessionChanged()
     {
         if (Session.IsAuthenticated)
         {
+            InvokeAsync(Alerts.Start);
             return;
         }
 
         InvokeAsync(() =>
         {
             Library.Reset();
+            Cart.Reset();
             Navigation.NavigateTo("login");
         });
     }

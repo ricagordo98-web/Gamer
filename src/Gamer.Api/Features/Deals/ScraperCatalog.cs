@@ -27,7 +27,7 @@ public static class ScraperCatalog
         HtmlOfferParser fanatical = new(
             new HtmlSelectors(
                 ".HitCardContainer", "img[alt]", ".card-price", ".was-price",
-                "a.hitCardStripe__content__purchase__price", ".product-cover-container img", ".card-saving"),
+                "a.hitCardStripe__content__purchase__price", ".product-cover-container img", ".card-saving", ".CountdownTimer"),
             name => name.StartsWith(CoverPrefix, StringComparison.OrdinalIgnoreCase) ? name[CoverPrefix.Length..] : name);
         HtmlOfferParser gamesplanet = new(new HtmlSelectors(
             ".game_list, .game_list_small", "h4 a", ".price_current", ".price_base", "h4 a", "img", ".price_saving"));
