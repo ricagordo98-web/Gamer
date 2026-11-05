@@ -109,6 +109,17 @@ public sealed class PromotionsEndpointsTests : IClassFixture<GamerApiFactory>
     }
 
     [Fact]
+    public async Task Promotions_SeveralStores_ShowsCheapestOfferAmongThem()
+    {
+        HttpClient client = await RefreshedClientAsync();
+
+        PromotionPageDto? page = await GetAsync(client, $"?store={ScraperCatalog.Steam},{Uri.EscapeDataString(ScraperCatalog.HumbleBundle)}");
+
+        page!.Items.Select(i => i.Title).Should().BeEquivalentTo("Hades", "Celeste", "Hollow Knight");
+        page.Items.Single(i => i.Title == "Hades").Best.Store.Should().Be(ScraperCatalog.HumbleBundle);
+    }
+
+    [Fact]
     public async Task Promotions_MinDiscountAndMaxPrice_FilterOnTheBestOffer()
     {
         HttpClient client = await RefreshedClientAsync();

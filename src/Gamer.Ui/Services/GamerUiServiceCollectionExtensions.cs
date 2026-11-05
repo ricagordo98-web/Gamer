@@ -15,6 +15,7 @@ public static class GamerUiServiceCollectionExtensions
         services.AddSingleton<AuthSession>();
         services.AddSingleton<ToastService>();
         services.AddSingleton<GameLibrary>();
+        services.AddScoped<ThemeService>();
         services.AddTransient<ApiHandler>();
 
         services.AddHttpClient<IGamerApi, GamerApiClient>(client => client.BaseAddress = new Uri(PlaceholderBaseAddress))

@@ -4,8 +4,23 @@
 @inject ServerSettings Server
 @inject GameLibrary Library
 @inject ToastService Toasts
+@inject ThemeService Theme
 
 <header class="page-header"><h1>Definições</h1></header>
+
+<section class="card form">
+    <h3>Aspeto</h3>
+    <p class="muted">Escolhe o tema da aplicação. Fica guardado neste dispositivo.</p>
+    <div class="theme-picker">
+        @foreach (ThemeOption theme in ThemeService.Themes)
+        {
+            <button class="theme-swatch @(Theme.Current == theme.Id ? "on" : string.Empty)" data-theme="@theme.Id" @onclick="() => Theme.SetAsync(theme.Id)">
+                <span class="swatch-colors"><i></i><i></i><i></i></span>
+                @theme.Name
+            </button>
+        }
+    </div>
+</section>
 
 <section class="card form">
     <h3>Servidor</h3>

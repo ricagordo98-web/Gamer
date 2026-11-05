@@ -41,10 +41,13 @@ public class PromotionService(GamerDbContext db, IEnumerable<IStoreScraper> scra
         HashSet<string> wishlist = (await db.Wishlist.AsNoTracking().Select(i => i.Title).ToListAsync(cancellationToken))
             .Select(TitleMatcher.Normalize).ToHashSet();
         List<Store> stores = await db.Stores.AsNoTracking().Where(s => s.IsEnabled).OrderBy(s => s.Id).ToListAsync(cancellationToken);
+        HashSet<string> storeFilter = (query.Store ?? string.Empty)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         IEnumerable<PromotionDto> filtered = promotions
             .GroupBy(p => p.TitleKey)
-            .Select(group => BuildGroup(group.ToList(), query.Store, library, wishlist))
+            .Select(group => BuildGroup(group.ToList(), storeFilter, library, wishlist))
             .OfType<PromotionDto>()
             .Where(item => Matches(item, query));
 
@@ -88,7 +91,7 @@ public class PromotionService(GamerDbContext db, IEnumerable<IStoreScraper> scra
         db.ChangeTracker.Clear();
     }
 
-    private static PromotionDto? BuildGroup(List<Promotion> group, string? storeFilter, HashSet<string> library, HashSet<string> wishlist)
+    private static PromotionDto? BuildGroup(List<Promotion> group, HashSet<string> storeFilter, HashSet<string> library, HashSet<string> wishlist)
     {
         string? currency = group
             .GroupBy(p => p.Currency)
@@ -105,9 +108,9 @@ public class PromotionService(GamerDbContext db, IEnumerable<IStoreScraper> scra
             .ThenByDescending(p => p.DiscountPercent)
             .ToList();
 
-        Promotion? best = string.IsNullOrWhiteSpace(storeFilter)
+        Promotion? best = storeFilter.Count == 0
             ? cheapestPerStore.FirstOrDefault()
-            : cheapestPerStore.FirstOrDefault(p => p.Store.Name.Equals(storeFilter, StringComparison.OrdinalIgnoreCase));
+            : cheapestPerStore.FirstOrDefault(p => storeFilter.Contains(p.Store.Name));
         if (best is null)
         {
             return null;
