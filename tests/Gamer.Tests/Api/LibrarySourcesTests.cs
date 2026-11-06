@@ -108,6 +108,38 @@ public sealed class LibrarySourcesTests : IClassFixture<GamerApiFactory>
     }
 
     [Fact]
+    public async Task LaunchBoxSource_ReadsStoresAndConsoles_WithoutTouchingFiles()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "gamer-lb-" + Guid.NewGuid().ToString("N"));
+        string platforms = Path.Combine(root, "Data", "Platforms");
+        Directory.CreateDirectory(platforms);
+        File.WriteAllText(Path.Combine(platforms, "PC - Steam.xml"), "<LaunchBox><Game><Title>Hades</Title><Platform>PC - Steam</Platform><StorefrontPluginId>unbroken.steam</StorefrontPluginId></Game><Game><Title>Hidden</Title><Platform>PC - Steam</Platform><StorefrontPluginId>unbroken.steam</StorefrontPluginId><Hide>true</Hide></Game><Game><Title>Assassin&apos;s Creed</Title><Platform>PC - Ubisoft</Platform><StorefrontPluginId>unbroken.storefront.ubisoft</StorefrontPluginId></Game></LaunchBox>");
+        File.WriteAllText(Path.Combine(platforms, "Sony Playstation 2.xml"), "<LaunchBox><Game><Title>Onimusha 3</Title><Platform>Sony Playstation 2</Platform><StorefrontPluginId></StorefrontPluginId></Game></LaunchBox>");
+        string[] before = Directory.GetFileSystemEntries(root, "*", SearchOption.AllDirectories);
+        try
+        {
+            HttpClient client = await CreateAuthorizedClientAsync();
+            await client.PutAsJsonAsync("/api/library/sources/launchbox/path", new EmulatorPathRequest(root));
+
+            LibrarySyncResultDto? first = await (await client.PostAsync("/api/library/sources/launchbox/sync", null)).Content.ReadFromJsonAsync<LibrarySyncResultDto>();
+            LibrarySyncResultDto? second = await (await client.PostAsync("/api/library/sources/launchbox/sync", null)).Content.ReadFromJsonAsync<LibrarySyncResultDto>();
+            List<GameDto>? games = await client.GetFromJsonAsync<List<GameDto>>("/api/games");
+
+            first.Should().Be(new LibrarySyncResultDto(3, 3));
+            second.Should().Be(new LibrarySyncResultDto(3, 0));
+            games.Should().Contain(g => g.Title == "Hades" && g.PlatformName == "Steam");
+            games.Should().Contain(g => g.Title == "Assassin's Creed" && g.PlatformName == "Ubisoft");
+            games.Should().Contain(g => g.Title == "Onimusha 3" && g.PlatformName == "PS2 (Emu)" && g.PlatformFamily == "Emulador");
+            games.Should().NotContain(g => g.Title == "Hidden");
+            Directory.GetFileSystemEntries(root, "*", SearchOption.AllDirectories).Should().BeEquivalentTo(before);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task Sync_UnknownSource_ReturnsNotFound()
     {
         HttpClient client = await CreateAuthorizedClientAsync();

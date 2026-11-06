@@ -37,7 +37,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ISteamSettingsService, SteamSettingsService>();
         services.AddScoped<SteamSyncService>();
         services.AddSingleton<IEnumerable<ILibraryScanner>>(provider =>
-            [.. LauncherScanner.CreateAll(), new EmulatorScanner(provider.GetRequiredService<IServiceScopeFactory>())]);
+            [.. LauncherScanner.CreateAll(), new EmulatorScanner(provider.GetRequiredService<IServiceScopeFactory>()), new LaunchBoxScanner(provider.GetRequiredService<IServiceScopeFactory>())]);
         services.AddScoped<LibrarySourceService>();
         services.AddHttpClient<ISteamClient, SteamClient>(client =>
         {
@@ -60,6 +60,7 @@ public static class ServiceCollectionExtensions
         ]);
         services.AddSingleton<BundleCache>();
         services.AddScoped<IBundleService, BundleService>();
+        services.AddSingleton<CartPriceComparer>();
         services.AddScoped<ICartService, CartService>();
         services.AddSingleton<PromotionStatusBoard>();
         services.AddSingleton<RefreshCoordinator>();

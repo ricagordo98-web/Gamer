@@ -123,6 +123,15 @@ else
                             }
                         </div>
                         <div class="cart-tags"><span class="store-tag">@game.Store</span><CartStatusPill Item="game" /></div>
+                        @if (game.Cheaper is { } cheaper)
+                        {
+                            <div class="cart-cheaper">
+                                <Icon Name="tag" Size="14" />
+                                <span>Mais barato na <b>@cheaper.Store</b>: <strong>@DealFormat.Money(cheaper.Price, cheaper.Currency)</strong> (poupas @DealFormat.Money((game.CurrentPrice ?? game.Price) - cheaper.Price, cheaper.Currency)).</span>
+                                <a class="link-btn" href="@cheaper.Url" target="_blank" rel="noopener noreferrer">Ver</a>
+                                <button class="link-btn" @onclick="() => SwitchStoreAsync(game, cheaper)">Trocar para a @cheaper.Store</button>
+                            </div>
+                        }
                     </div>
                     <button class="icon-btn cart-remove" @onclick="() => Cart.RemoveAsync(game.Id)" title="Remover"><Icon Name="trash" Size="18" /></button>
                 </article>
@@ -153,7 +162,7 @@ else
 
     private int GameCount => Cart.Items.Sum(i => i.Kind == CartKinds.Bundle ? i.Games.Count : 1);
 
-    private List<CartAlert> Alerts => Cart.Items.Select(i => CartAlerts.For(i, DateTimeOffset.UtcNow)).OfType<CartAlert>().ToList();
+    private List<CartAlert> Alerts => Cart.Items.SelectMany(i => CartAlerts.All(i, DateTimeOffset.UtcNow)).ToList();
 
     protected override Task OnInitializedAsync()
     {
@@ -179,6 +188,16 @@ else
         finally
         {
             _loading = false;
+        }
+    }
+
+    private async Task SwitchStoreAsync(CartItemDto item, CheaperOfferDto cheaper)
+    {
+        CartItemRequest request = new(CartKinds.Game, cheaper.Store, item.Title, cheaper.Url, item.ImageUrl, cheaper.Price, cheaper.OriginalPrice, cheaper.Currency, null, null);
+        if (await Cart.SaveAsync(request))
+        {
+            await Cart.RemoveAsync(item.Id);
+            Toasts.Success($"{item.Title} passou para a {cheaper.Store}.");
         }
     }
 

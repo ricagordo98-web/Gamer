@@ -19,6 +19,7 @@ public interface IGamerApi
     Task<IReadOnlyList<LibrarySourceDto>> GetLibrarySourcesAsync(CancellationToken cancellationToken);
     Task<LibrarySyncResultDto> SyncLibrarySourceAsync(string id, CancellationToken cancellationToken);
     Task<IReadOnlyList<LibrarySourceDto>> SaveEmulatorPathAsync(string path, CancellationToken cancellationToken);
+    Task<IReadOnlyList<LibrarySourceDto>> SaveSourcePathAsync(string id, string path, CancellationToken cancellationToken);
     Task<ImportResultDto> ImportAsync(Stream workbook, string fileName, CancellationToken cancellationToken);
     Task<IReadOnlyList<StoreDto>> GetStoresAsync(CancellationToken cancellationToken);
     Task<StoreDto> UpdateStoreAsync(int id, StoreUpdateRequest request, CancellationToken cancellationToken);
@@ -35,6 +36,7 @@ public interface IGamerApi
     Task<RefreshStatusDto> GetRefreshStatusAsync(CancellationToken cancellationToken);
     Task<PromotionPageDto> GetPromotionsAsync(PromotionQuery query, CancellationToken cancellationToken);
     Task<RefreshStatusDto> RefreshPromotionsAsync(CancellationToken cancellationToken);
+    Task<RefreshStatusDto> RefreshStoresAsync(CancellationToken cancellationToken);
     Task<CatalogPageDto> GetCatalogAsync(CatalogQuery query, bool refresh, CancellationToken cancellationToken);
     Task<BundlePageDto> GetBundlesAsync(string store, bool refresh, CancellationToken cancellationToken);
     Task<IReadOnlyList<CartItemDto>> GetCartAsync(CancellationToken cancellationToken);

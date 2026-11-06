@@ -53,8 +53,8 @@
                             @if (source.Kind == "folder")
                             {
                                 <div class="source-path">
-                                    <input class="input" @bind="_emulatorPath" placeholder="E:\Jogos\Emulator" />
-                                    <button class="btn" @onclick="SavePathAsync" disabled="@(_busyId is not null)">Guardar pasta</button>
+                                    <input class="input" @bind="Paths[source.Id]" placeholder="@(source.Id == "launchbox" ? @"C:\Users\nome\LaunchBox" : @"E:\Jogos\Emulator")" />
+                                    <button class="btn" @onclick="() => SavePathAsync(source)" disabled="@(_busyId is not null)">Guardar pasta</button>
                                 </div>
                             }
                         </div>
@@ -79,7 +79,7 @@
 
     private List<LibrarySourceDto> _sources = [];
     private readonly Dictionary<string, string> _results = [];
-    private string _emulatorPath = string.Empty;
+    private readonly Dictionary<string, string> _paths = [];
     private string? _busyId;
     private string? _error;
     private bool _loading = true;
@@ -117,15 +117,20 @@
     private void Apply(IReadOnlyList<LibrarySourceDto> sources)
     {
         _sources = [.. sources];
-        _emulatorPath = sources.FirstOrDefault(s => s.Kind == "folder")?.Path ?? string.Empty;
+        foreach (LibrarySourceDto folder in sources.Where(s => s.Kind == "folder"))
+        {
+            _paths[folder.Id] = folder.Path ?? string.Empty;
+        }
     }
 
-    private async Task SavePathAsync()
+    private Dictionary<string, string> Paths => _paths;
+
+    private async Task SavePathAsync(LibrarySourceDto source)
     {
         _busyId = "folder";
         try
         {
-            Apply(await Api.SaveEmulatorPathAsync(_emulatorPath, CancellationToken.None));
+            Apply(await Api.SaveSourcePathAsync(source.Id, _paths[source.Id], CancellationToken.None));
             Toasts.Success("Pasta guardada.");
         }
         catch (ApiException exception)

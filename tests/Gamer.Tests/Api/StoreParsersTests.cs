@@ -181,10 +181,7 @@ public class StoreParsersTests
     [Fact]
     public void ScraperCatalog_ParsesHumbleMarkup()
     {
-        const string html = """
-            <ul><li class="entity-block-container"><div class="entity on-sale"><a class="entity-link" href="/store/silent-hill-2"><div class="entity-details"><img class="entity-image" src="https://hb.imgix.net/s.jpg"><span class="entity-title">SILENT HILL 2</span></div></a>
-            <div class="entity-pricing"><div class="price-container"><div class="discount-amount"> -60%<span> OFF</span></div><span class="breakdown-full-price">€69.99</span><div class="price-button"><button class="price price-inner-button">€27.99</button></div></div></div></div></li></ul>
-            """;
+        const string html = """<html><body><pre>{"num_results":2,"results":[{"human_name":"SILENT HILL 2","human_url":"silent-hill-2","standard_carousel_image":"https://hb.imgix.net/s.jpg","full_price":{"currency":"EUR","amount":69.99},"current_price":{"currency":"EUR","amount":27.99},"sale_end":1794420000.0},{"human_name":"Full Price Game","human_url":"full-price","current_price":{"currency":"EUR","amount":9.99},"full_price":{"currency":"EUR","amount":9.99}}]}</pre></body></html>""";
         Store store = CreateStore(ScraperCatalog.HumbleBundle, "https://www.humblebundle.com/");
         IPageFetcher fetcher = new StaticFetcher(html);
         IStoreScraper scraper = ScraperCatalog.Create(fetcher, fetcher).Single(s => s.StoreName == ScraperCatalog.HumbleBundle);
@@ -195,6 +192,18 @@ public class StoreParsersTests
         offer.Price.Should().Be(27.99m);
         offer.OriginalPrice.Should().Be(69.99m);
         offer.Url.Should().Be("https://www.humblebundle.com/store/silent-hill-2");
+    }
+
+    [Fact]
+    public void HumbleSearchParser_ReadsJsonResults_AndKeepsFullPriceItems()
+    {
+        const string json = """{"num_pages":775,"results":[{"human_name":"Hades","human_url":"hades","full_price":{"currency":"EUR","amount":24.99},"current_price":{"currency":"EUR","amount":12.49},"sale_end":1794420000.0},{"human_name":"Celeste","human_url":"celeste","full_price":{"currency":"EUR","amount":19.99},"current_price":{"currency":"EUR","amount":19.99}},{"human_name":"No price","human_url":"x"}]}""";
+
+        IReadOnlyList<StoreOffer> offers = new HumbleSearchParser().Parse(json, CreateStore(ScraperCatalog.HumbleBundle, "https://www.humblebundle.com/"));
+
+        offers.Select(o => (o.Title, o.Price, o.DiscountPercent)).Should().Equal(("Hades", 12.49m, 50), ("Celeste", 19.99m, 0));
+        offers[0].EndsAt.Should().NotBeNull();
+        offers[0].Url.Should().Be("https://www.humblebundle.com/store/hades");
     }
 
     private sealed class StaticFetcher(string content) : IPageFetcher

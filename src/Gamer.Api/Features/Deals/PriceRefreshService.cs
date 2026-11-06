@@ -4,7 +4,7 @@ namespace Gamer.Api.Features.Deals;
 
 public class PriceRefreshService(IServiceScopeFactory scopes, RefreshCoordinator coordinator, ILogger<PriceRefreshService> logger) : BackgroundService
 {
-    private static readonly TimeSpan StartupDelay = TimeSpan.FromSeconds(20);
+    private static readonly TimeSpan StartupDelay = TimeSpan.FromSeconds(3);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -17,10 +17,7 @@ public class PriceRefreshService(IServiceScopeFactory scopes, RefreshCoordinator
             {
                 await using AsyncServiceScope scope = scopes.CreateAsyncScope();
                 hours = await scope.ServiceProvider.GetRequiredService<ISteamSettingsService>().GetRefreshHoursAsync(stoppingToken);
-                if (hours > 0)
-                {
-                    coordinator.TryStart();
-                }
+                coordinator.TryStart(hours > 0 ? RefreshScope.All : RefreshScope.Stores);
             }
             catch (Exception exception) when (exception is not OperationCanceledException)
             {

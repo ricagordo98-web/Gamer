@@ -43,4 +43,7 @@ public record CartItemDto(
     DateTimeOffset? EndsAt,
     DateTimeOffset AddedAt,
     string Status,
-    IReadOnlyList<CartGameDto> Games);
+    IReadOnlyList<CartGameDto> Games,
+    CheaperOfferDto? Cheaper = null);
+
+public record CheaperOfferDto(string Store, string Url, decimal Price, decimal OriginalPrice, string Currency);

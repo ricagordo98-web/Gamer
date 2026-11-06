@@ -11,7 +11,7 @@ public class CartState(IGamerApi api, ToastService toasts)
 
     public IReadOnlyList<CartItemDto> Items => _items;
 
-    public int AlertCount => _items.Count(i => CartAlerts.IsAlert(i.Status));
+    public int AlertCount => _items.Count(CartAlerts.NeedsAttention);
 
     public CartItemDto? Find(string kind, string url) => _items.FirstOrDefault(i => i.Kind == kind && i.Url == url);
 

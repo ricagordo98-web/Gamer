@@ -40,6 +40,7 @@ public sealed class EmulatorScanner(IServiceScopeFactory scopes) : ILibraryScann
     public string Name => "Emuladores";
     public string Kind => "folder";
     public string Description => "Jogos da pasta de emuladores (só leitura: nada é apagado nem alterado).";
+    public string? PathSettingKey => SettingKey;
 
     public async Task<bool> IsAvailableAsync(CancellationToken cancellationToken) =>
         Directory.Exists(await GetPathAsync(cancellationToken));

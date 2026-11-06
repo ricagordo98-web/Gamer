@@ -8,6 +8,7 @@ public interface ILibraryScanner
     string Name { get; }
     string Kind { get; }
     string Description { get; }
+    string? PathSettingKey => null;
 
     Task<bool> IsAvailableAsync(CancellationToken cancellationToken);
     Task<string?> GetPathAsync(CancellationToken cancellationToken);

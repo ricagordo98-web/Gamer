@@ -48,7 +48,7 @@ public class AlertMonitor(CartState cart, AuthSession session, ToastService toas
         List<string> notified = await LoadNotifiedAsync();
         DateTimeOffset now = time.GetUtcNow();
         List<CartAlert> fresh = cart.Items
-            .Select(item => CartAlerts.For(item, now))
+            .SelectMany(item => CartAlerts.All(item, now))
             .OfType<CartAlert>()
             .Where(alert => !notified.Contains(alert.Key))
             .ToList();

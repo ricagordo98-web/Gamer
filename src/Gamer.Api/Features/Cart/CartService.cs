@@ -17,6 +17,7 @@ public interface ICartService
 public class CartService(
     GamerDbContext db,
     CatalogCache catalog,
+    CartPriceComparer comparer,
     BundleCache bundleCache,
     IEnumerable<IBundleSource> bundleSources,
     TimeProvider time) : ICartService
@@ -34,8 +35,15 @@ public class CartService(
             .ToDictionary(g => g.Key, g => g.OrderByDescending(p => p.CapturedAt).First());
 
         await RefreshBundlesAsync(items, cancellationToken);
+        List<Store> stores = await db.Stores.AsNoTracking().Where(s => s.IsEnabled).ToListAsync(cancellationToken);
+        Dictionary<string, List<Promotion>> byTitle = await LoadPromotionsByTitleAsync(items, cancellationToken);
+        foreach (CartItem game in items.Where(i => i.Kind == CartKinds.Game))
+        {
+            comparer.EnsureLoaded(game.Title, TitleMatcher.Normalize(game.Title), stores);
+        }
+
         DateTimeOffset now = time.GetUtcNow();
-        return items.Select(item => item.Kind == CartKinds.Bundle ? BundleDto(item, now) : GameDto(item, promotions, now)).ToList();
+        return items.Select(item => item.Kind == CartKinds.Bundle ? BundleDto(item, now) : GameDto(item, promotions, byTitle, stores, now)).ToList();
     }
 
     public async Task<CartItemDto> SaveAsync(CartItemRequest request, CancellationToken cancellationToken)
@@ -71,6 +79,32 @@ public class CartService(
     public async Task<bool> DeleteAsync(int id, CancellationToken cancellationToken) =>
         await db.CartItems.Where(i => i.Id == id).ExecuteDeleteAsync(cancellationToken) > 0;
 
+    private async Task<Dictionary<string, List<Promotion>>> LoadPromotionsByTitleAsync(List<CartItem> items, CancellationToken cancellationToken)
+    {
+        List<string> keys = items.Where(i => i.Kind == CartKinds.Game).Select(i => TitleMatcher.Normalize(i.Title)).Distinct().ToList();
+        List<Promotion> promotions = await db.Promotions.AsNoTracking().Include(p => p.Store).Where(p => keys.Contains(p.TitleKey)).ToListAsync(cancellationToken);
+        return promotions.GroupBy(p => p.TitleKey).ToDictionary(g => g.Key, g => g.ToList());
+    }
+
+    private CheaperOfferDto? FindCheaper(CartItem item, decimal paying, Dictionary<string, List<Promotion>> byTitle, List<Store> stores)
+    {
+        string key = TitleMatcher.Normalize(item.Title);
+        if (key.Length == 0)
+        {
+            return null;
+        }
+
+        IEnumerable<StoreOffer> offers = comparer.Get(key);
+        offers = offers.Concat(byTitle.GetValueOrDefault(key, []).Select(p => new StoreOffer(p.Store.Name, p.Title, p.Price, p.OriginalPrice, p.Url, p.Currency)));
+        offers = offers.Concat(stores.SelectMany(store => catalog.Get(store.Name).Offers.Where(o => TitleMatcher.Normalize(o.Title) == key)));
+
+        return offers
+            .Where(o => o.Store != item.Store && o.Currency == item.Currency && o.Price < paying - PriceTolerance)
+            .OrderBy(o => o.Price)
+            .Select(o => new CheaperOfferDto(o.Store, o.Url, o.Price, Math.Max(o.OriginalPrice, o.Price), o.Currency))
+            .FirstOrDefault();
+    }
+
     private async Task RefreshBundlesAsync(List<CartItem> items, CancellationToken cancellationToken)
     {
         List<string> storeNames = items.Where(i => i.Kind == CartKinds.Bundle).Select(i => i.Store).Distinct().ToList();
@@ -89,7 +123,7 @@ public class CartService(
         }
     }
 
-    private CartItemDto GameDto(CartItem item, Dictionary<string, Promotion> promotions, DateTimeOffset now)
+    private CartItemDto GameDto(CartItem item, Dictionary<string, Promotion> promotions, Dictionary<string, List<Promotion>> byTitle, List<Store> stores, DateTimeOffset now)
     {
         StoreOffer? catalogOffer = catalog.Get(item.Store).Offers.FirstOrDefault(o => o.Url == item.Url);
         (decimal? current, DateTimeOffset? endsAt) = promotions.TryGetValue(item.Url, out Promotion? promotion)
@@ -102,7 +136,7 @@ public class CartService(
             : endsAt - now <= EndingSoonWindow ? CartStatuses.EndingSoon
             : CartStatuses.Active;
 
-        return ToDto(item, current, endsAt, status);
+        return ToDto(item, current, endsAt, status, FindCheaper(item, current ?? item.Price, byTitle, stores));
     }
 
     private CartItemDto BundleDto(CartItem item, DateTimeOffset now)
@@ -116,10 +150,10 @@ public class CartService(
             : endsAt - now <= EndingSoonWindow ? CartStatuses.EndingSoon
             : CartStatuses.Active;
 
-        return ToDto(item, null, endsAt, status);
+        return ToDto(item, null, endsAt, status, null);
     }
 
-    private static CartItemDto ToDto(CartItem item, decimal? current, DateTimeOffset? endsAt, string status) =>
+    private static CartItemDto ToDto(CartItem item, decimal? current, DateTimeOffset? endsAt, string status, CheaperOfferDto? cheaper) =>
         new(item.Id, item.Kind, item.Store, item.Title, item.Url, item.ImageUrl, item.Price, item.OriginalPrice, item.Currency, current, endsAt,
-            item.AddedAt, status, item.Games.Select(g => new CartGameDto(g.Title, g.ImageUrl)).ToList());
+            item.AddedAt, status, item.Games.Select(g => new CartGameDto(g.Title, g.ImageUrl)).ToList(), cheaper);
 }

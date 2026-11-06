@@ -43,6 +43,25 @@ public static class LibraryEndpoints
             return Results.Ok(await sources.ListAsync(ct));
         });
 
+        group.MapPut("/sources/{id}/path", async (string id, EmulatorPathRequest request, LibrarySourceService sources, CancellationToken ct) =>
+        {
+            if (string.IsNullOrWhiteSpace(request.Path))
+            {
+                return Results.Problem("Indica a pasta.", statusCode: StatusCodes.Status400BadRequest);
+            }
+
+            try
+            {
+                await sources.SaveSourcePathAsync(id, request.Path, ct);
+            }
+            catch (UnknownSourceException exception)
+            {
+                return Results.Problem(exception.Message, statusCode: StatusCodes.Status404NotFound);
+            }
+
+            return Results.Ok(await sources.ListAsync(ct));
+        });
+
         return app;
     }
 }

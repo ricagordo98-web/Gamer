@@ -1,6 +1,7 @@
 using FluentValidation;
 using Gamer.Api.Data;
 using Gamer.Api.Domain;
+using Gamer.Api.Features.Deals;
 using Gamer.Api.Infrastructure;
 using Gamer.Contracts.Deals;
 using Microsoft.EntityFrameworkCore;
@@ -20,6 +21,12 @@ public static class StoreEndpoints
     public static IEndpointRouteBuilder MapStoreEndpoints(this IEndpointRouteBuilder app)
     {
         RouteGroupBuilder group = app.MapGroup("/api/stores").RequireAuthorization();
+
+        group.MapPost("/refresh", (RefreshCoordinator coordinator) =>
+        {
+            coordinator.TryStart(RefreshScope.Stores);
+            return Results.Accepted(value: coordinator.Status);
+        });
 
         group.MapGet("/", async (GamerDbContext db, CancellationToken ct) =>
             Results.Ok(await db.Stores.AsNoTracking().OrderBy(s => s.Id).Select(s => ToDto(s)).ToListAsync(ct)));

@@ -1,3 +1,4 @@
+using Gamer.Api.Domain;
 using Gamer.Api.Features.Deals.Parsers;
 
 namespace Gamer.Api.Features.Deals;
@@ -15,15 +16,18 @@ public static class ScraperCatalog
 
     private static readonly string[] GamesplanetCategories = ["action", "arcade_indie", "strategy", "rpg", "simulation", "adventure"];
 
+    // Humble's own JSON search (20 per page, 0-based, ~15k games); the HTML store only ever exposes a handful of pages.
+    private static string HumbleApi(Store store, string? search, string filter, int page) =>
+        $"{store.BaseUrl}store/api/search?sort=bestselling&filter={filter}&request=1&page={page - 1}"
+        + (string.IsNullOrWhiteSpace(search) ? string.Empty : $"&search={Uri.EscapeDataString(search)}");
+
     public static IReadOnlyList<IStoreScraper> Create(IPageFetcher http, IPageFetcher browser)
     {
         IReadOnlyList<IPageFetcher> httpFirst = [http, browser];
         IReadOnlyList<IPageFetcher> browserOnly = [browser];
 
         IOfferParser steamSearch = new SteamSearchParser();
-        HtmlOfferParser humble = new(new HtmlSelectors(
-            ".entity-block-container", ".entity-title", ".price-button .price", ".breakdown-full-price",
-            "a.entity-link", "img.entity-image", ".discount-amount"));
+        IOfferParser humble = new HumbleSearchParser();
         HtmlOfferParser fanatical = new(
             new HtmlSelectors(
                 ".HitCardContainer", "img[alt]", ".card-price", ".was-price",
@@ -45,10 +49,10 @@ public static class ScraperCatalog
                 httpFirst),
             new FetchingScraper(HumbleBundle,
                 new ScraperPages(
-                    (store, query) => $"{store.BaseUrl}store/search?search={Uri.EscapeDataString(query)}",
-                    store => $"{store.BaseUrl}store/search?sort=bestselling&filter=onsale",
-                    humble, humble, ".entity-block-container",
-                    (store, page) => $"{store.BaseUrl}store/search?sort=bestselling&page={page}"),
+                    (store, query) => HumbleApi(store, query, "all", 1),
+                    store => HumbleApi(store, null, "onsale", 1),
+                    humble, humble, null,
+                    (store, page) => HumbleApi(store, null, "all", page)),
                 browserOnly),
             new FetchingScraper(Fanatical,
                 new ScraperPages(

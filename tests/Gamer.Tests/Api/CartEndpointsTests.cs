@@ -113,16 +113,31 @@ public sealed class CartEndpointsTests(GamerApiFactory factory) : IClassFixture<
         items["https://f.test/down"].Status.Should().Be(CartStatuses.PriceDown);
     }
 
-    private async Task AddPromotionAsync(string url, decimal price)
+    [Fact]
+    public async Task Cheaper_SameGameCheaperInAnotherStore_IsReportedOnTheCartItem()
+    {
+        HttpClient client = await CreateAuthorizedClientAsync();
+        await SaveAsync(client, new CartItemRequest(CartKinds.Game, ScraperCatalog.Fanatical, "Celeste", "https://f.test/celeste", null, 12m, 20m, "EUR", null, null));
+        await SaveAsync(client, new CartItemRequest(CartKinds.Game, ScraperCatalog.Fanatical, "Dead Cells", "https://f.test/dead-cells", null, 9m, 20m, "EUR", null, null));
+        await AddPromotionAsync("https://s.test/celeste", 7.5m, ScraperCatalog.Steam, "Celeste", "celeste");
+        await AddPromotionAsync("https://s.test/dead-cells", 9m, ScraperCatalog.Steam, "Dead Cells", "dead cells");
+
+        Dictionary<string, CartItemDto> items = (await client.GetFromJsonAsync<List<CartItemDto>>("/api/cart"))!.ToDictionary(i => i.Url);
+
+        items["https://f.test/celeste"].Cheaper.Should().Be(new CheaperOfferDto(ScraperCatalog.Steam, "https://s.test/celeste", 7.5m, 25m, "EUR"));
+        items["https://f.test/dead-cells"].Cheaper.Should().BeNull();
+    }
+
+    private async Task AddPromotionAsync(string url, decimal price, string storeName = ScraperCatalog.Fanatical, string title = "Hades", string titleKey = "hades")
     {
         using IServiceScope scope = factory.Services.CreateScope();
         GamerDbContext db = scope.ServiceProvider.GetRequiredService<GamerDbContext>();
-        Store store = db.Stores.Single(s => s.Name == ScraperCatalog.Fanatical);
+        Store store = db.Stores.Single(s => s.Name == storeName);
         db.Promotions.Add(new Promotion
         {
             StoreId = store.Id,
-            Title = "Hades",
-            TitleKey = "hades",
+            Title = title,
+            TitleKey = titleKey,
             Price = price,
             OriginalPrice = 25m,
             Url = url,

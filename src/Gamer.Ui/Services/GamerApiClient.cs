@@ -43,6 +43,9 @@ public class GamerApiClient(HttpClient http) : IGamerApi
     public async Task<IReadOnlyList<LibrarySourceDto>> SaveEmulatorPathAsync(string path, CancellationToken cancellationToken) =>
         await SendAsync<List<LibrarySourceDto>>(() => http.PutAsJsonAsync("api/library/sources/emulator", new EmulatorPathRequest(path), cancellationToken), cancellationToken);
 
+    public async Task<IReadOnlyList<LibrarySourceDto>> SaveSourcePathAsync(string id, string path, CancellationToken cancellationToken) =>
+        await SendAsync<List<LibrarySourceDto>>(() => http.PutAsJsonAsync($"api/library/sources/{Uri.EscapeDataString(id)}/path", new EmulatorPathRequest(path), cancellationToken), cancellationToken);
+
     public Task<ImportResultDto> ImportAsync(Stream workbook, string fileName, CancellationToken cancellationToken)
     {
         MultipartFormDataContent form = new() { { new StreamContent(workbook), "file", fileName } };
@@ -90,6 +93,9 @@ public class GamerApiClient(HttpClient http) : IGamerApi
 
     public Task<PromotionPageDto> GetPromotionsAsync(PromotionQuery query, CancellationToken cancellationToken) =>
         SendAsync<PromotionPageDto>(() => http.GetAsync($"api/promotions{PromotionQueryString(query)}", cancellationToken), cancellationToken);
+
+    public Task<RefreshStatusDto> RefreshStoresAsync(CancellationToken cancellationToken) =>
+        SendAsync<RefreshStatusDto>(() => http.PostAsync("api/stores/refresh", null, cancellationToken), cancellationToken);
 
     public Task<RefreshStatusDto> RefreshPromotionsAsync(CancellationToken cancellationToken) =>
         SendAsync<RefreshStatusDto>(() => http.PostAsync("api/promotions/refresh", null, cancellationToken), cancellationToken);

@@ -58,13 +58,22 @@ public class LibrarySourceService(
         return new LibrarySyncResultDto(found.Count, added);
     }
 
-    public async Task SaveEmulatorPathAsync(string path, CancellationToken cancellationToken)
+    public Task SaveEmulatorPathAsync(string path, CancellationToken cancellationToken) => SaveSettingAsync(EmulatorScanner.SettingKey, path, cancellationToken);
+
+    public async Task SaveSourcePathAsync(string id, string path, CancellationToken cancellationToken)
+    {
+        string key = scanners.FirstOrDefault(s => string.Equals(s.Id, id, StringComparison.OrdinalIgnoreCase))?.PathSettingKey
+            ?? throw new UnknownSourceException(id);
+        await SaveSettingAsync(key, path, cancellationToken);
+    }
+
+    private async Task SaveSettingAsync(string key, string path, CancellationToken cancellationToken)
     {
         string trimmed = path.Trim();
-        AppSetting? setting = await db.AppSettings.FirstOrDefaultAsync(s => s.Key == EmulatorScanner.SettingKey, cancellationToken);
+        AppSetting? setting = await db.AppSettings.FirstOrDefaultAsync(s => s.Key == key, cancellationToken);
         if (setting is null)
         {
-            db.AppSettings.Add(new AppSetting { Key = EmulatorScanner.SettingKey, Value = trimmed });
+            db.AppSettings.Add(new AppSetting { Key = key, Value = trimmed });
         }
         else
         {

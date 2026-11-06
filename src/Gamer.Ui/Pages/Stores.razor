@@ -7,9 +7,14 @@
 
 <header class="page-header">
     <h1>Lojas <small>@(_store is null ? string.Empty : _showBundles ? _bundleCount.ToString() : _page.Total.ToString())</small></h1>
-    <button class="btn" @onclick="RefreshAsync" disabled="@(_store is null || (!_showBundles && _page.Loading))">
-        <Icon Name="refresh" Size="18" /> @(!_showBundles && _page.Loading ? "A carregar…" : "Atualizar")
-    </button>
+    <div class="header-actions-inline">
+        <button class="btn btn-primary" @onclick="RefreshAllAsync" disabled="@_refreshingAll" title="Atualiza todas as lojas e bundles de uma vez">
+            <Icon Name="refresh" Size="18" /> @(_refreshingAll ? "A atualizar tudo…" : "Atualizar tudo")
+        </button>
+        <button class="btn" @onclick="RefreshAsync" disabled="@(_store is null || _refreshingAll || (!_showBundles && _page.Loading))">
+            <Icon Name="refresh" Size="18" /> @(!_showBundles && _page.Loading ? "A carregar…" : "Atualizar esta loja")
+        </button>
+    </div>
 </header>
 
 <p class="muted promo-updated">@(_showBundles ? "Bundles de jogos ativos, ordenados pelos que acabam primeiro. Abre um para veres os jogos e os níveis de preço." : UpdatedText)</p>
@@ -107,6 +112,7 @@ else
     private string? _error;
     private bool _loading;
     private bool _loadingMore;
+    private bool _refreshingAll;
     private bool _disposed;
     private int _generation;
 
@@ -133,6 +139,45 @@ else
     {
         flip();
         return ApplyAsync();
+    }
+
+    private async Task RefreshAllAsync()
+    {
+        _refreshingAll = true;
+        try
+        {
+            RefreshStatusDto status = await Api.RefreshStoresAsync(CancellationToken.None);
+            while (!_disposed && status.Running)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(3));
+                status = await Api.GetRefreshStatusAsync(CancellationToken.None);
+                if (_store is not null && !_showBundles)
+                {
+                    _page = await Api.GetCatalogAsync(BuildQuery(0), false, CancellationToken.None);
+                }
+
+                StateHasChanged();
+            }
+
+            if (_store is not null)
+            {
+                await LoadAsync(false);
+                if (_showBundles && _bundles is not null)
+                {
+                    await _bundles.RefreshAsync();
+                }
+            }
+
+            Toasts.Success("Todas as lojas atualizadas.");
+        }
+        catch (ApiException exception)
+        {
+            Toasts.Error(exception.Message);
+        }
+        finally
+        {
+            _refreshingAll = false;
+        }
     }
 
     private Task RefreshAsync() => _showBundles && _bundles is not null ? _bundles.RefreshAsync() : LoadAsync(true, refresh: true);

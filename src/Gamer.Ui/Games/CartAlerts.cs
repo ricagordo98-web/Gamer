@@ -10,6 +10,20 @@ public static class CartAlerts
 
     public static bool IsAlert(string status) => status is not CartStatuses.Active;
 
+    public static bool NeedsAttention(CartItemDto item) => IsAlert(item.Status) || item.Cheaper is not null;
+
+    public static CartAlert? CheaperElsewhere(CartItemDto item) =>
+        item.Cheaper is { } cheaper
+            ? new CartAlert(
+                $"{item.Id}:cheaper:{cheaper.Store}:{cheaper.Price}",
+                "Mais barato noutra loja",
+                $"{item.Title}: {DealFormat.Money(item.CurrentPrice ?? item.Price, item.Currency)} em {item.Store} → {DealFormat.Money(cheaper.Price, cheaper.Currency)} em {cheaper.Store}.",
+                true)
+            : null;
+
+    public static IEnumerable<CartAlert> All(CartItemDto item, DateTimeOffset now) =>
+        new[] { For(item, now), CheaperElsewhere(item) }.OfType<CartAlert>();
+
     public static CartAlert? For(CartItemDto item, DateTimeOffset now)
     {
         string name = $"{item.Title} ({item.Store})";
