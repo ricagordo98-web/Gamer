@@ -95,6 +95,32 @@ public sealed class ExcelImporterTests : IDisposable
     }
 
     [Fact]
+    public async Task ImportAsync_FirstSheetWithoutPlatformColumn_UsesTheSheetThatHasIt()
+    {
+        using XLWorkbook book = new();
+        IXLWorksheet other = book.AddWorksheet("Bruna");
+        other.Cell(3, 2).Value = "Jogo";
+        other.Cell(3, 3).Value = "Fim";
+        other.Cell(4, 2).Value = "Hogwarts Legacy";
+        IXLWorksheet mine = book.AddWorksheet("Ricardo");
+        string[] headers = ["Jogo", "Consola", "A Jogar", "Terminado", "Deck"];
+        for (int column = 0; column < headers.Length; column++)
+        {
+            mine.Cell(2, column + 2).Value = headers[column];
+        }
+
+        mine.Cell(3, 2).Value = "Hades";
+        mine.Cell(3, 3).Value = "PC - STEAM";
+        using MemoryStream stream = new();
+        book.SaveAs(stream);
+        stream.Position = 0;
+
+        ImportResultDto result = await CreateImporter().ImportAsync(stream, CancellationToken.None);
+
+        result.Imported.Should().Be(1);
+    }
+
+    [Fact]
     public async Task ImportAsync_MissingHeaders_ThrowsInvalidData()
     {
         using XLWorkbook book = new();

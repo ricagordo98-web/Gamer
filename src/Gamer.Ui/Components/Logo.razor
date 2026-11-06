@@ -1,15 +1,29 @@
-﻿<svg class="logo" viewBox="0 0 256 256" width="@Size" height="@Size" aria-label="Gamer">
+<svg class="logo" viewBox="0 0 256 256" width="@Size" height="@Size" aria-label="Gamer">
     <defs>
         <linearGradient id="gamer-logo-bg" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" style="stop-color: var(--accent, #8b5cf6)" />
-            <stop offset="1" style="stop-color: var(--accent-2, #00f0ff)" />
+            <stop offset="0" stop-color="#1c1357" />
+            <stop offset="1" stop-color="#06060f" />
+        </linearGradient>
+        <linearGradient id="gamer-logo-neon" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#00f0ff" />
+            <stop offset="0.55" stop-color="#8b5cf6" />
+            <stop offset="1" stop-color="#ff2e97" />
+        </linearGradient>
+        <linearGradient id="gamer-logo-rim" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#00f0ff" />
+            <stop offset="1" stop-color="#ff2e97" />
         </linearGradient>
     </defs>
-    <rect width="256" height="256" rx="58" fill="url(#gamer-logo-bg)" />
-    <path d="M70 92h116c24 0 38 20 44 52l6 34c3 17-6 26-19 26-9 0-15-5-22-14l-9-12H70l-9 12c-7 9-13 14-22 14-13 0-22-9-19-26l6-34c6-32 20-52 44-52z" fill="#fff" />
-    <path d="M92 114v34M75 131h34" stroke="#1b1060" stroke-width="13" stroke-linecap="round" />
-    <circle cx="166" cy="124" r="9" fill="#1b1060" />
-    <circle cx="188" cy="142" r="9" fill="#1b1060" />
+    <rect width="256" height="256" rx="56" fill="url(#gamer-logo-bg)" />
+    <rect x="5" y="5" width="246" height="246" rx="51" fill="none" stroke="url(#gamer-logo-rim)" stroke-width="6" />
+    <g transform="translate(0 -12)">
+        <path d="M70 92h116c24 0 38 20 44 52l6 34c3 17-6 26-19 26-9 0-15-5-22-14l-9-12H70l-9 12c-7 9-13 14-22 14-13 0-22-9-19-26l6-34c6-32 20-52 44-52z" fill="url(#gamer-logo-neon)" />
+        <path d="M78 117v36M60 135h36" stroke="#0a0820" stroke-width="13" stroke-linecap="round" />
+        <circle cx="178" cy="115" r="8.5" fill="#0a0820" />
+        <circle cx="198" cy="135" r="8.5" fill="#0a0820" />
+        <circle cx="158" cy="135" r="8.5" fill="#0a0820" />
+        <circle cx="178" cy="155" r="8.5" fill="#0a0820" />
+    </g>
 </svg>
 
 @code {

@@ -1,0 +1,187 @@
+@inject GameLibrary Library
+@inject IGamerApi Api
+@inject ToastService Toasts
+
+<div class="overlay" @onclick="OnClose">
+    <div class="sheet sheet-wide" role="dialog" aria-modal="true" @onclick:stopPropagation="true">
+        <div class="sheet-header">
+            <h2>Fontes de jogos</h2>
+            <button type="button" class="icon-btn" @onclick="OnClose" aria-label="Fechar"><Icon Name="x" /></button>
+        </div>
+
+        <p class="muted source-intro">Escolhe de onde vão buscar-se os jogos. Os novos entram na Biblioteca como Backlog; os que já existem não são duplicados.</p>
+
+        @if (_loading)
+        {
+            <div class="empty"><div class="spinner"></div></div>
+        }
+        else if (_error is not null)
+        {
+            <div class="empty">
+                <p>@_error</p>
+                <button class="btn btn-primary" @onclick="LoadAsync">Tentar de novo</button>
+            </div>
+        }
+        else
+        {
+            <div class="source-actions">
+                <button class="btn btn-primary" @onclick="SyncAllAsync" disabled="@(_busyId is not null)">
+                    <Icon Name="refresh" Size="18" /> @(_busyId == All ? "A sincronizar tudo…" : "Sincronizar tudo")
+                </button>
+            </div>
+
+            @foreach (IGrouping<string, LibrarySourceDto> group in _sources.GroupBy(GroupOf))
+            {
+                <h3 class="section-title">@group.Key</h3>
+                @foreach (LibrarySourceDto source in group)
+                {
+                    <div class="card source-row plat-@PlatformChip.Slug(source.Name)">
+                        <div class="source-main">
+                            <div class="source-name">
+                                <span class="source-dot"></span>@source.Name
+                                @if (!source.Available)
+                                {
+                                    <span class="source-flag">@(source.Kind == "account" ? "por configurar" : "não encontrado")</span>
+                                }
+                            </div>
+                            <div class="muted source-desc">@source.Description</div>
+                            @if (_results.TryGetValue(source.Id, out string? result))
+                            {
+                                <div class="source-result">@result</div>
+                            }
+
+                            @if (source.Kind == "folder")
+                            {
+                                <div class="source-path">
+                                    <input class="input" @bind="_emulatorPath" placeholder="E:\Jogos\Emulator" />
+                                    <button class="btn" @onclick="SavePathAsync" disabled="@(_busyId is not null)">Guardar pasta</button>
+                                </div>
+                            }
+                        </div>
+                        <button class="btn" @onclick="() => SyncAsync(source)" disabled="@(_busyId is not null || !source.Available)">
+                            <Icon Name="refresh" Size="16" /> @(_busyId == source.Id ? "A ler…" : "Sincronizar")
+                        </button>
+                    </div>
+                }
+            }
+
+            <p class="muted source-note">
+                A Steam usa a tua conta (API key e SteamID nas Definições). A Epic, GOG, Ubisoft, EA, Battle.net e Rockstar não têm API pública
+                para ler a biblioteca de uma conta: aqui lê-se o que está instalado neste PC. Para os jogos não instalados usa “Adicionar vários”.
+                A pasta de emuladores é só lida: nunca se apaga nem altera nada nela.
+            </p>
+        }
+    </div>
+</div>
+
+@code {
+    private const string All = "*";
+
+    private List<LibrarySourceDto> _sources = [];
+    private readonly Dictionary<string, string> _results = [];
+    private string _emulatorPath = string.Empty;
+    private string? _busyId;
+    private string? _error;
+    private bool _loading = true;
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private static string GroupOf(LibrarySourceDto source) => source.Kind switch
+    {
+        "account" => "Conta online",
+        "folder" => "Pasta no disco",
+        _ => "Launchers neste PC",
+    };
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+        try
+        {
+            Apply(await Api.GetLibrarySourcesAsync(CancellationToken.None));
+        }
+        catch (ApiException exception)
+        {
+            _error = exception.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void Apply(IReadOnlyList<LibrarySourceDto> sources)
+    {
+        _sources = [.. sources];
+        _emulatorPath = sources.FirstOrDefault(s => s.Kind == "folder")?.Path ?? string.Empty;
+    }
+
+    private async Task SavePathAsync()
+    {
+        _busyId = "folder";
+        try
+        {
+            Apply(await Api.SaveEmulatorPathAsync(_emulatorPath, CancellationToken.None));
+            Toasts.Success("Pasta guardada.");
+        }
+        catch (ApiException exception)
+        {
+            Toasts.Error(exception.Message);
+        }
+        finally
+        {
+            _busyId = null;
+        }
+    }
+
+    private async Task SyncAsync(LibrarySourceDto source)
+    {
+        _busyId = source.Id;
+        try
+        {
+            await RunSyncAsync(source);
+            await Library.ReloadAsync(CancellationToken.None);
+        }
+        finally
+        {
+            _busyId = null;
+        }
+    }
+
+    private async Task SyncAllAsync()
+    {
+        _busyId = All;
+        try
+        {
+            foreach (LibrarySourceDto source in _sources.Where(s => s.Available))
+            {
+                await RunSyncAsync(source);
+                StateHasChanged();
+            }
+
+            await Library.ReloadAsync(CancellationToken.None);
+            Toasts.Success("Fontes sincronizadas.");
+        }
+        finally
+        {
+            _busyId = null;
+        }
+    }
+
+    private async Task RunSyncAsync(LibrarySourceDto source)
+    {
+        try
+        {
+            LibrarySyncResultDto result = await Api.SyncLibrarySourceAsync(source.Id, CancellationToken.None);
+            _results[source.Id] = $"{result.Found} encontrados, {result.Added} novos.";
+        }
+        catch (ApiException exception)
+        {
+            _results[source.Id] = exception.Message;
+        }
+    }
+}

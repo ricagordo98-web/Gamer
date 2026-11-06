@@ -3,6 +3,7 @@ using System.Text.Json;
 using Gamer.Contracts.Auth;
 using Gamer.Contracts.Deals;
 using Gamer.Contracts.Games;
+using Gamer.Contracts.Library;
 using Gamer.Contracts.Steam;
 
 namespace Gamer.Ui.Services;
@@ -32,6 +33,15 @@ public class GamerApiClient(HttpClient http) : IGamerApi
 
     public Task<ImportResultDto> BulkAddGamesAsync(BulkAddRequest request, CancellationToken cancellationToken) =>
         SendAsync<ImportResultDto>(() => http.PostAsJsonAsync("api/games/bulk", request, cancellationToken), cancellationToken);
+
+    public async Task<IReadOnlyList<LibrarySourceDto>> GetLibrarySourcesAsync(CancellationToken cancellationToken) =>
+        await SendAsync<List<LibrarySourceDto>>(() => http.GetAsync("api/library/sources", cancellationToken), cancellationToken);
+
+    public Task<LibrarySyncResultDto> SyncLibrarySourceAsync(string id, CancellationToken cancellationToken) =>
+        SendAsync<LibrarySyncResultDto>(() => http.PostAsync($"api/library/sources/{Uri.EscapeDataString(id)}/sync", null, cancellationToken), cancellationToken);
+
+    public async Task<IReadOnlyList<LibrarySourceDto>> SaveEmulatorPathAsync(string path, CancellationToken cancellationToken) =>
+        await SendAsync<List<LibrarySourceDto>>(() => http.PutAsJsonAsync("api/library/sources/emulator", new EmulatorPathRequest(path), cancellationToken), cancellationToken);
 
     public Task<ImportResultDto> ImportAsync(Stream workbook, string fileName, CancellationToken cancellationToken)
     {

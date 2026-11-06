@@ -1,6 +1,7 @@
 ﻿using Gamer.Contracts.Auth;
 using Gamer.Contracts.Deals;
 using Gamer.Contracts.Games;
+using Gamer.Contracts.Library;
 using Gamer.Contracts.Steam;
 
 namespace Gamer.Ui.Services;
@@ -15,6 +16,9 @@ public interface IGamerApi
     Task<GameDto> ChangeStatusAsync(int id, GameStatus status, CancellationToken cancellationToken);
     Task DeleteGameAsync(int id, CancellationToken cancellationToken);
     Task<ImportResultDto> BulkAddGamesAsync(BulkAddRequest request, CancellationToken cancellationToken);
+    Task<IReadOnlyList<LibrarySourceDto>> GetLibrarySourcesAsync(CancellationToken cancellationToken);
+    Task<LibrarySyncResultDto> SyncLibrarySourceAsync(string id, CancellationToken cancellationToken);
+    Task<IReadOnlyList<LibrarySourceDto>> SaveEmulatorPathAsync(string path, CancellationToken cancellationToken);
     Task<ImportResultDto> ImportAsync(Stream workbook, string fileName, CancellationToken cancellationToken);
     Task<IReadOnlyList<StoreDto>> GetStoresAsync(CancellationToken cancellationToken);
     Task<StoreDto> UpdateStoreAsync(int id, StoreUpdateRequest request, CancellationToken cancellationToken);

@@ -74,10 +74,9 @@ public class ExcelImporter(GamerDbContext db, TimeProvider clock) : IExcelImport
     private static List<ExcelGameRow> ReadRows(Stream workbook)
     {
         using XLWorkbook book = new(workbook);
-        IXLWorksheet sheet = book.Worksheets.First();
-
-        IXLRow headerRow = sheet.RowsUsed().FirstOrDefault(r => FindColumn(r, TitleHeader) is not null)
-            ?? throw new InvalidDataException($"Header row with column \"{TitleHeader}\" not found.");
+        // A workbook can hold several lists (e.g. another person's sheet without a platform column), so use the
+        // first sheet that has both the game and platform headers.
+        (IXLWorksheet sheet, IXLRow headerRow) = FindListSheet(book);
 
         int titleColumn = FindColumn(headerRow, TitleHeader)!.Value;
         int platformColumn = FindColumn(headerRow, PlatformHeader) ?? throw MissingColumn(PlatformHeader);
@@ -104,6 +103,20 @@ public class ExcelImporter(GamerDbContext db, TimeProvider clock) : IExcelImport
         }
 
         return rows;
+    }
+
+    private static (IXLWorksheet Sheet, IXLRow Header) FindListSheet(XLWorkbook book)
+    {
+        foreach (IXLWorksheet sheet in book.Worksheets)
+        {
+            IXLRow? header = sheet.RowsUsed().FirstOrDefault(r => FindColumn(r, TitleHeader) is not null && FindColumn(r, PlatformHeader) is not null);
+            if (header is not null)
+            {
+                return (sheet, header);
+            }
+        }
+
+        throw new InvalidDataException($"No sheet has the columns \"{TitleHeader}\" and \"{PlatformHeader}\".");
     }
 
     private static int? FindColumn(IXLRow row, string header) =>

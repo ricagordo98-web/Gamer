@@ -80,4 +80,12 @@ Definições → Importar do Excel → escolhe o `.xlsx` (colunas `Jogo`, `Conso
 
 ## Ícone
 
-`tools/make-icons.ps1` gera `assets/gamer.ico` e os PNG da PWA. O mesmo desenho existe em SVG em `Gamer.Ui/Components/Logo.razor` e `Gamer.Maui/Resources/AppIcon/`.
+`tools/make-icons.ps1` (precisa do Chromium do Playwright; desenho em `assets/gamer-icon.svg`) gera `assets/gamer.ico` e os PNG da PWA. O mesmo desenho existe em SVG em `Gamer.Ui/Components/Logo.razor` e `Gamer.Maui/Resources/AppIcon/`.
+
+## Fontes de jogos
+
+Biblioteca → **Fontes** (ou o botão no telemóvel). Cada fonte acrescenta jogos como Backlog sem duplicar os existentes:
+
+- **Steam**: conta (API key + SteamID nas Definições).
+- **Epic, GOG, Ubisoft, EA, Battle.net, Rockstar**: não têm API pública para ler a biblioteca de uma conta, por isso lê-se o que está instalado no PC onde corre a API (manifests da Epic e registo do Windows). Para jogos não instalados, usa "Adicionar vários".
+- **Emuladores**: pasta `E:\Ricardo\Jogos\Emulator\` (configurável), com uma subpasta por consola. É **só leitura**: nunca se escreve, move ou apaga nada nela. Cada consola vira uma plataforma "X (Emu)" na família Emuladores; o nome do jogo é o do ficheiro sem tags como `(Europe)` ou `[!]`.

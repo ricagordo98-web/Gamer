@@ -1,0 +1,128 @@
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
+using FluentAssertions;
+using Gamer.Api.Features.Library;
+using Gamer.Contracts.Auth;
+using Gamer.Contracts.Games;
+using Gamer.Contracts.Library;
+
+namespace Gamer.Tests.Api;
+
+public sealed class LibrarySourcesTests : IClassFixture<GamerApiFactory>
+{
+    private readonly GamerApiFactory _factory;
+
+    public LibrarySourcesTests(GamerApiFactory factory) => _factory = factory;
+
+    [Theory]
+    [InlineData("Mario Kart - Double Dash!! (Europe) (En,Fr,De,Es,It).iso", "Mario Kart - Double Dash!!")]
+    [InlineData("Luigi's Mansion (USA).nkit.iso", "Luigi's Mansion")]
+    [InlineData("Banjo-Kazooie (U) [!].z64", "Banjo-Kazooie")]
+    [InlineData("Armored Core - Master of Arena (USA) (Disc 1).zip", "Armored Core - Master of Arena")]
+    public void Clean_RomFileName_RemovesTagsAndExtensions(string fileName, string expected) =>
+        EmulatorTitles.Clean(fileName).Should().Be(expected);
+
+    [Fact]
+    public void Clean_FolderWithSerial_RemovesTagsAndSerial() =>
+        EmulatorTitles.Clean("Dark Souls 2 [+ Fix All DLC] BLUS41045", hasExtension: false).Should().Be("Dark Souls 2");
+
+    [Fact]
+    public void ScanFolder_ReadsConsolesSkipsBiosAndJunk_WithoutTouchingFiles()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "gamer-emu-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "BIOS"));
+            Directory.CreateDirectory(Path.Combine(root, "PS1"));
+            Directory.CreateDirectory(Path.Combine(root, "PS3", "Demon's Souls (USA)"));
+            File.WriteAllText(Path.Combine(root, "BIOS", "scph1001.bin"), "x");
+            File.WriteAllText(Path.Combine(root, "PS1", "Diablo (Europe).cue"), "x");
+            File.WriteAllText(Path.Combine(root, "PS1", "Diablo (Europe).bin"), "x");
+            File.WriteAllText(Path.Combine(root, "PS1", "Armored Core (USA) (Disc 1).zip"), "x");
+            File.WriteAllText(Path.Combine(root, "PS1", "Armored Core (USA) (Disc 2).zip"), "x");
+            File.WriteAllText(Path.Combine(root, "PS1", "info.txt"), "x");
+            string[] before = Directory.GetFileSystemEntries(root, "*", SearchOption.AllDirectories);
+
+            IReadOnlyList<ScannedGame> games = EmulatorScanner.ScanFolder(root);
+
+            games.Select(g => (g.Title, g.PlatformName)).Should().BeEquivalentTo(
+            [
+                ("Diablo", "PS1 (Emu)"),
+                ("Armored Core", "PS1 (Emu)"),
+                ("Demon's Souls", "PS3 (Emu)"),
+            ]);
+            games.Should().OnlyContain(g => g.PlatformFamily == "Emulador");
+            Directory.GetFileSystemEntries(root, "*", SearchOption.AllDirectories).Should().BeEquivalentTo(before);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void ParseTitle_EpicManifest_SkipsAddOns()
+    {
+        EpicManifestParser.ParseTitle("""{"DisplayName":"Hades","AppName":"a1","MainGameAppName":"a1"}""").Should().Be("Hades");
+        EpicManifestParser.ParseTitle("""{"DisplayName":"Hades DLC","AppName":"a2","MainGameAppName":"a1"}""").Should().BeNull();
+        EpicManifestParser.ParseTitle("not json").Should().BeNull();
+    }
+
+    [Fact]
+    public void GamesOf_FiltersByPublisherAndExcludedNames()
+    {
+        InstalledProgram[] programs =
+        [
+            new("Assassin's Creed Origins", "Ubisoft"),
+            new("Ubisoft Connect", "Ubisoft"),
+            new("7-Zip", "Igor Pavlov"),
+        ];
+
+        InstalledPrograms.GamesOf(programs, "Ubisoft", "Ubisoft Connect").Should().Equal("Assassin's Creed Origins");
+    }
+
+    [Fact]
+    public async Task EmulatorSource_SaveFolderAndSync_AddsEmulatorGamesOnce()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "gamer-emu-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.Combine(root, "SNES"));
+        File.WriteAllText(Path.Combine(root, "SNES", "ActRaiser (Europe).sfc"), "x");
+        try
+        {
+            HttpClient client = await CreateAuthorizedClientAsync();
+            await client.PutAsJsonAsync("/api/library/sources/emulator", new EmulatorPathRequest(root));
+
+            LibrarySyncResultDto? first = await (await client.PostAsync("/api/library/sources/emulator/sync", null)).Content.ReadFromJsonAsync<LibrarySyncResultDto>();
+            LibrarySyncResultDto? second = await (await client.PostAsync("/api/library/sources/emulator/sync", null)).Content.ReadFromJsonAsync<LibrarySyncResultDto>();
+            List<GameDto>? games = await client.GetFromJsonAsync<List<GameDto>>("/api/games");
+
+            first.Should().Be(new LibrarySyncResultDto(1, 1));
+            second.Should().Be(new LibrarySyncResultDto(1, 0));
+            games.Should().Contain(g => g.Title == "ActRaiser" && g.PlatformName == "SNES (Emu)" && g.PlatformFamily == "Emulador");
+            File.Exists(Path.Combine(root, "SNES", "ActRaiser (Europe).sfc")).Should().BeTrue();
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task Sync_UnknownSource_ReturnsNotFound()
+    {
+        HttpClient client = await CreateAuthorizedClientAsync();
+
+        HttpResponseMessage response = await client.PostAsync("/api/library/sources/nope/sync", null);
+
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.NotFound);
+    }
+
+    private async Task<HttpClient> CreateAuthorizedClientAsync()
+    {
+        HttpClient client = _factory.CreateClient();
+        HttpResponseMessage response = await client.PostAsJsonAsync("/api/auth/login", new LoginRequest("tester", "secret"));
+        LoginResponse? login = await response.Content.ReadFromJsonAsync<LoginResponse>();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", login!.Token);
+        return client;
+    }
+}

@@ -4,81 +4,25 @@
 
 @{
     GameFilter filter = Library.Filter;
-    List<GameDto> visible = filter.Apply(Library.Games).ToList();
+    bool overview = filter.Family is null && filter.PlatformId is null && filter.Search.Trim().Length == 0 && !_showAll;
+    List<GameDto> visible = overview ? [] : filter.Apply(Library.Games).ToList();
     List<GameDto> forCounts = filter.ApplyExceptStatus(Library.Games).ToList();
-    List<GameDto> forPlatforms = filter.ApplyExceptPlatform(Library.Games).Where(g => filter.Status is null || g.Status == filter.Status).ToList();
-    List<string> families = Library.Platforms.Select(p => p.Family).Distinct().ToList();
-    IEnumerable<PlatformDto> shownPlatforms = Library.Platforms
-        .Where(p => (filter.Family is null || p.Family == filter.Family) && forPlatforms.Any(g => g.PlatformId == p.Id));
+    PlatformDto? selected = Library.Platforms.FirstOrDefault(p => p.Id == filter.PlatformId);
 }
 
 <header class="page-header">
-    <h1>Biblioteca <small>@visible.Count</small></h1>
+    <h1>Biblioteca <small>@(overview ? Library.Games.Count : visible.Count)</small></h1>
     <div class="header-actions desktop-only">
+        <button class="btn" @onclick="() => _sources = true"><Icon Name="refresh" Size="18" /> Fontes</button>
         <button class="btn" @onclick="() => _bulk = true"><Icon Name="upload" Size="18" /> Adicionar vários</button>
         <button class="btn btn-primary" @onclick="() => _adding = true"><Icon Name="plus" Size="18" /> Novo jogo</button>
     </div>
 </header>
 
-<div class="toolbar">
-    <label class="search">
-        <Icon Name="search" Size="18" />
-        <input type="search" placeholder="Procurar jogo…" @bind="filter.Search" @bind:event="oninput" />
-    </label>
-
-    <div class="filter-block">
-        <span class="filter-label">Plataforma</span>
-        <div class="chips">
-            <button class="chip @(filter.Family is null ? "on" : string.Empty)" @onclick="() => filter.Family = null">Todas <b>@Library.Games.Count</b></button>
-            @foreach (string family in families)
-            {
-                <button class="chip fam-chip fam-@family.ToLowerInvariant() @(filter.Family == family ? "on" : string.Empty)" @onclick="() => filter.Family = family">
-                    @FamilyLabel(family) <b>@Library.Games.Count(g => g.PlatformFamily == family)</b>
-                </button>
-            }
-        </div>
-        @if (filter.Family is not null || filter.PlatformId is not null)
-        {
-            <div class="chips sub-chips">
-                @foreach (PlatformDto platform in shownPlatforms)
-                {
-                    <button class="chip plat-chip plat-@PlatformChip.Slug(platform.Name) @(filter.PlatformId == platform.Id ? "on" : string.Empty)"
-                            @onclick="() => filter.PlatformId = filter.PlatformId == platform.Id ? null : platform.Id">
-                        @platform.Name <b>@forPlatforms.Count(g => g.PlatformId == platform.Id)</b>
-                    </button>
-                }
-            </div>
-        }
-    </div>
-
-    <div class="filter-block">
-        <span class="filter-label">Estado</span>
-        <div class="chips">
-            <button class="chip @(filter.Status is null ? "on" : string.Empty)" @onclick="() => filter.Status = null">Todos <b>@forCounts.Count</b></button>
-            @foreach (GameStatus status in Enum.GetValues<GameStatus>())
-            {
-                <button class="chip st-@status.CssClass() @(filter.Status == status ? "on" : string.Empty)" @onclick="() => filter.Status = status">
-                    @status.Label() <b>@forCounts.Count(g => g.Status == status)</b>
-                </button>
-            }
-        </div>
-    </div>
-
-    <div class="filters-row">
-        <button class="chip @(filter.OnlyDeck ? "on" : string.Empty)" @onclick="() => filter.OnlyDeck = !filter.OnlyDeck">
-            <Icon Name="deck" Size="16" /> Deck
-        </button>
-        <select class="input sort-select" @bind="filter.Sort" aria-label="Ordenar">
-            <option value="@GameSort.Title">Ordenar: A–Z</option>
-            <option value="@GameSort.Platform">Ordenar: plataforma</option>
-            <option value="@GameSort.Status">Ordenar: estado</option>
-        </select>
-        @if (filter.IsActive)
-        {
-            <button class="chip" @onclick="filter.Reset">Limpar</button>
-        }
-    </div>
-</div>
+<label class="search lib-search">
+    <Icon Name="search" Size="18" />
+    <input type="search" placeholder="Procurar em toda a biblioteca…" @bind="filter.Search" @bind:event="oninput" />
+</label>
 
 @if (Library.IsLoading && !Library.IsLoaded)
 {
@@ -91,27 +35,133 @@ else if (Library.LoadError is not null)
         <button class="btn btn-primary" @onclick="() => Library.ReloadAsync(CancellationToken.None)">Tentar de novo</button>
     </div>
 }
-else if (visible.Count == 0)
+else if (overview)
 {
-    <div class="empty">
-        <p>Nenhum jogo encontrado.</p>
-        @if (filter.IsActive)
+    @if (Library.Games.Count == 0)
+    {
+        <div class="empty">
+            <Icon Name="games" Size="40" />
+            <p>A biblioteca está vazia.</p>
+            <p class="muted">Vai buscar os jogos às tuas contas e pastas, ou adiciona à mão.</p>
+            <button class="btn btn-primary" @onclick="() => _sources = true"><Icon Name="refresh" Size="18" /> Fontes de jogos</button>
+        </div>
+    }
+    else
+    {
+        <div class="lib-top">
+            <button class="chip" @onclick="() => _showAll = true">Ver todos os jogos <b>@Library.Games.Count</b></button>
+        </div>
+
+        @foreach (string family in FamiliesInUse)
         {
-            <button class="btn" @onclick="filter.Reset">Limpar filtros</button>
+            List<PlatformDto> platforms = PlatformsOf(family);
+            <section class="fam-section fam-@family.ToLowerInvariant()">
+                <div class="fam-head">
+                    <h3>@FamilyLabel(family) <small>@Library.Games.Count(g => g.PlatformFamily == family)</small></h3>
+                    <button class="link-btn" @onclick="() => OpenFamily(family)">Ver todos <Icon Name="external" Size="14" /></button>
+                </div>
+                <div class="plat-grid">
+                    @foreach (PlatformDto platform in platforms)
+                    {
+                        List<GameDto> games = Library.Games.Where(g => g.PlatformId == platform.Id).ToList();
+                        int done = games.Count(g => g.Status == GameStatus.Completed);
+                        <button class="plat-tile fam-@platform.Family.ToLowerInvariant() plat-@PlatformChip.Slug(platform.Name)" @onclick="() => OpenPlatform(platform)">
+                            <span class="plat-name">@DisplayName(platform)</span>
+                            <strong>@games.Count</strong>
+                            <span class="plat-bar"><i style="width:@(100 * done / games.Count)%"></i></span>
+                            <span class="plat-sub">@done terminados@(games.Any(g => g.Status == GameStatus.Playing) ? $" · {games.Count(g => g.Status == GameStatus.Playing)} a jogar" : string.Empty)</span>
+                        </button>
+                    }
+                </div>
+            </section>
         }
-    </div>
+    }
 }
 else
 {
-    <Virtualize Items="visible" Context="game" ItemSize="80" OverscanCount="8">
-        <GameCard @key="game.Id" Game="game" OnOpen="() => _editing = game" OnAdvance="() => AdvanceAsync(game)" />
-    </Virtualize>
+    <nav class="crumbs" aria-label="Localização">
+        <button class="link-btn" @onclick="BackToOverview"><Icon Name="dashboard" Size="14" /> Biblioteca</button>
+        @if (filter.Family is not null)
+        {
+            <span>›</span>
+            <button class="link-btn @(selected is null ? "current" : string.Empty)" @onclick="() => OpenFamily(filter.Family)">@FamilyLabel(filter.Family)</button>
+        }
+        @if (selected is not null)
+        {
+            <span>›</span>
+            <span class="current">@DisplayName(selected)</span>
+        }
+        @if (filter.Family is null && filter.Search.Trim().Length > 0)
+        {
+            <span>›</span>
+            <span class="current">Pesquisa</span>
+        }
+        @if (filter.Family is null && filter.Search.Trim().Length == 0)
+        {
+            <span>›</span>
+            <span class="current">Todos os jogos</span>
+        }
+    </nav>
+
+    @if (filter.Family is not null)
+    {
+        <div class="chips sub-chips">
+            <button class="chip @(filter.PlatformId is null ? "on" : string.Empty)" @onclick="() => OpenFamily(filter.Family)">Todas <b>@Library.Games.Count(g => g.PlatformFamily == filter.Family)</b></button>
+            @foreach (PlatformDto platform in PlatformsOf(filter.Family))
+            {
+                <button class="chip plat-chip fam-@platform.Family.ToLowerInvariant() plat-@PlatformChip.Slug(platform.Name) @(filter.PlatformId == platform.Id ? "on" : string.Empty)" @onclick="() => OpenPlatform(platform)">
+                    @DisplayName(platform) <b>@Library.Games.Count(g => g.PlatformId == platform.Id)</b>
+                </button>
+            }
+        </div>
+    }
+
+    <div class="toolbar">
+        <div class="chips">
+            <button class="chip @(filter.Status is null ? "on" : string.Empty)" @onclick="() => filter.Status = null">Todos <b>@forCounts.Count</b></button>
+            @foreach (GameStatus status in Enum.GetValues<GameStatus>())
+            {
+                <button class="chip st-@status.CssClass() @(filter.Status == status ? "on" : string.Empty)" @onclick="() => filter.Status = status">
+                    @status.Label() <b>@forCounts.Count(g => g.Status == status)</b>
+                </button>
+            }
+        </div>
+
+        <div class="filters-row">
+            <button class="chip @(filter.OnlyDeck ? "on" : string.Empty)" @onclick="() => filter.OnlyDeck = !filter.OnlyDeck">
+                <Icon Name="deck" Size="16" /> Deck
+            </button>
+            <select class="input sort-select" @bind="filter.Sort" aria-label="Ordenar">
+                <option value="@GameSort.Title">Ordenar: A–Z</option>
+                <option value="@GameSort.Platform">Ordenar: plataforma</option>
+                <option value="@GameSort.Status">Ordenar: estado</option>
+            </select>
+        </div>
+    </div>
+
+    @if (visible.Count == 0)
+    {
+        <div class="empty">
+            <p>Nenhum jogo encontrado.</p>
+            <button class="btn" @onclick="BackToOverview">Voltar à biblioteca</button>
+        </div>
+    }
+    else
+    {
+        <Virtualize Items="visible" Context="game" ItemSize="80" OverscanCount="8">
+            <GameCard @key="game.Id" Game="game" OnOpen="() => _editing = game" OnAdvance="() => AdvanceAsync(game)" />
+        </Virtualize>
+    }
 }
 
-<button class="fab fab-secondary mobile-only" @onclick="() => _bulk = true" aria-label="Adicionar vários"><Icon Name="upload" Size="22" /></button>
+<button class="fab fab-secondary mobile-only" @onclick="() => _sources = true" aria-label="Fontes de jogos"><Icon Name="refresh" Size="22" /></button>
 <button class="fab mobile-only" @onclick="() => _adding = true" aria-label="Novo jogo"><Icon Name="plus" Size="26" /></button>
 
-@if (_bulk)
+@if (_sources)
+{
+    <SourcesDialog OnClose="() => _sources = false" />
+}
+else if (_bulk)
 {
     <BulkAddDialog OnClose="() => _bulk = false" />
 }
@@ -125,9 +175,19 @@ else if (_editing is not null)
 }
 
 @code {
+    private static readonly string[] FamilyOrder = ["PC", "PlayStation", "Nintendo", "Emulador", "Other"];
+
     private GameDto? _editing;
     private bool _adding;
     private bool _bulk;
+    private bool _sources;
+    private bool _showAll;
+
+    private IEnumerable<string> FamiliesInUse => Library.Games
+        .Select(g => g.PlatformFamily)
+        .Distinct()
+        .OrderBy(f => Array.IndexOf(FamilyOrder, f) is var i and >= 0 ? i : FamilyOrder.Length)
+        .ThenBy(f => f);
 
     protected override async Task OnInitializedAsync()
     {
@@ -139,12 +199,41 @@ else if (_editing is not null)
 
     private void OnLibraryChanged() => InvokeAsync(StateHasChanged);
 
+    private List<PlatformDto> PlatformsOf(string family) => Library.Platforms
+        .Where(p => p.Family == family && Library.Games.Any(g => g.PlatformId == p.Id))
+        .OrderByDescending(p => Library.Games.Count(g => g.PlatformId == p.Id))
+        .ToList();
+
     private static string FamilyLabel(string family) => family switch
     {
         "PC" => "PC · lojas",
+        "Emulador" => "Emuladores",
         "Other" => "Outras",
         _ => family,
     };
+
+    private static string DisplayName(PlatformDto platform) => platform.Name.Replace(" (Emu)", string.Empty);
+
+    private void OpenFamily(string? family)
+    {
+        Library.Filter.Reset();
+        _showAll = false;
+        Library.Filter.Family = family;
+    }
+
+    private void OpenPlatform(PlatformDto platform)
+    {
+        Library.Filter.Reset();
+        _showAll = false;
+        Library.Filter.Family = platform.Family;
+        Library.Filter.PlatformId = platform.Id;
+    }
+
+    private void BackToOverview()
+    {
+        Library.Filter.Reset();
+        _showAll = false;
+    }
 
     private Task AdvanceAsync(GameDto game) => Library.SetStatusAsync(game, game.Status.Next(), CancellationToken.None);
 }
