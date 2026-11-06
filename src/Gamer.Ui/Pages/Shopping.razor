@@ -4,8 +4,10 @@
 @inject IGamerApi Api
 @inject ToastService Toasts
 
+<ShopTabs />
+
 <header class="page-header">
-    <h1>Compras <small>@Cart.Items.Count</small></h1>
+    <h1>Carrinho <small>@Cart.Items.Count</small></h1>
     <button class="btn" @onclick="ReloadAsync" disabled="@_loading">
         <Icon Name="refresh" Size="18" /> @(_loading ? "A atualizar…" : "Atualizar")
     </button>
@@ -15,7 +17,7 @@
 {
     <div class="empty">
         <Icon Name="cart" Size="40" />
-        <p>Ainda não tens nada nas Compras.</p>
+        <p>O carrinho está vazio.</p>
         <p class="muted">Usa o botão do carrinho nos jogos das Promoções e das Lojas, ou abre um bundle e adiciona-o.</p>
     </div>
 }

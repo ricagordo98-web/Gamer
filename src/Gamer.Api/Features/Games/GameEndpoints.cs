@@ -30,6 +30,9 @@ public static class GameEndpoints
             return updated is null ? Results.NotFound() : Results.Ok(updated);
         });
 
+        group.MapPost("/bulk", async (BulkAddRequest request, IGameService games, CancellationToken ct) =>
+            Results.Ok(await games.BulkAddAsync(request, ct))).AddEndpointFilter<ValidationFilter<BulkAddRequest>>();
+
         group.MapDelete("/{id:int}", async (int id, IGameService games, CancellationToken ct) =>
             await games.DeleteAsync(id, ct) ? Results.NoContent() : Results.NotFound());
 

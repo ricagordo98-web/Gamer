@@ -3,6 +3,8 @@
 @inject IGamerApi Api
 @inject ToastService Toasts
 
+<ShopTabs />
+
 <header class="page-header">
     <h1>Lojas <small>@(_store is null ? string.Empty : _showBundles ? _bundleCount.ToString() : _page.Total.ToString())</small></h1>
     <button class="btn" @onclick="RefreshAsync" disabled="@(_store is null || (!_showBundles && _page.Loading))">

@@ -1,0 +1,129 @@
+@inject GameLibrary Library
+@inject IGamerApi Api
+@inject ToastService Toasts
+
+<div class="overlay" @onclick="OnClose">
+    <div class="sheet" role="dialog" aria-modal="true" @onclick:stopPropagation="true">
+        <div class="sheet-header">
+            <h2>Adicionar vários jogos</h2>
+            <button type="button" class="icon-btn" @onclick="OnClose" aria-label="Fechar"><Icon Name="x" /></button>
+        </div>
+
+        <div class="form">
+            <div class="field">
+                <span>Plataforma / loja</span>
+                <div class="chips store-chips">
+                    @foreach (PlatformDto platform in Library.Platforms.Where(p => p.Family == "PC"))
+                    {
+                        <button type="button" class="chip @(_platformId == platform.Id ? "on" : string.Empty)" @onclick="() => _platformId = platform.Id">@platform.Name</button>
+                    }
+                </div>
+                <select class="input" @bind="_platformId">
+                    <option value="0" disabled>Ou escolhe outra plataforma…</option>
+                    @foreach (IGrouping<string, PlatformDto> family in Library.Platforms.GroupBy(p => p.Family))
+                    {
+                        <optgroup label="@family.Key">
+                            @foreach (PlatformDto platform in family)
+                            {
+                                <option value="@platform.Id">@platform.Name</option>
+                            }
+                        </optgroup>
+                    }
+                </select>
+            </div>
+
+            @if (SelectedName == "Steam")
+            {
+                <div class="card bulk-tip">
+                    <p>Para a Steam não precisas de escrever nada: a biblioteca vem sozinha.</p>
+                    <button type="button" class="btn btn-primary" @onclick="SyncSteamAsync" disabled="@_busy">
+                        <Icon Name="refresh" Size="18" /> @(_busy ? "A sincronizar…" : "Sincronizar Steam")
+                    </button>
+                </div>
+            }
+
+            <label class="field">
+                <span>Jogos <small class="muted">(um por linha)</small></span>
+                <textarea class="input bulk-text" rows="9" @bind="_text" @bind:event="oninput" placeholder="The Witcher 3&#10;Cyberpunk 2077&#10;Control"></textarea>
+            </label>
+
+            <div class="field">
+                <span>Entram como</span>
+                <div class="segmented">
+                    @foreach (GameStatus status in Enum.GetValues<GameStatus>())
+                    {
+                        <button type="button" class="seg @(_status == status ? "on" : string.Empty) st-@status.CssClass()" @onclick="() => _status = status">@status.Label()</button>
+                    }
+                </div>
+            </div>
+
+            <p class="muted">@Titles.Count jogos para adicionar. Os que já existem nessa plataforma são ignorados.</p>
+
+            <div class="sheet-actions">
+                <button type="button" class="btn" @onclick="OnClose">Cancelar</button>
+                <button type="button" class="btn btn-primary" @onclick="AddAsync" disabled="@(_busy || _platformId == 0 || Titles.Count == 0)">
+                    <Icon Name="plus" Size="18" /> Adicionar @(Titles.Count > 0 ? Titles.Count.ToString() : string.Empty)
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private int _platformId;
+    private string _text = string.Empty;
+    private GameStatus _status = GameStatus.Backlog;
+    private bool _busy;
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private string? SelectedName => Library.Platforms.FirstOrDefault(p => p.Id == _platformId)?.Name;
+
+    private List<string> Titles => _text
+        .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .ToList();
+
+    private async Task AddAsync()
+    {
+        _busy = true;
+        try
+        {
+            ImportResultDto result = await Api.BulkAddGamesAsync(new BulkAddRequest(_platformId, _status, Titles), CancellationToken.None);
+            await Library.ReloadAsync(CancellationToken.None);
+            Toasts.Success(result.Skipped == 0
+                ? $"{result.Imported} jogos adicionados."
+                : $"{result.Imported} adicionados, {result.Skipped} já existiam.");
+            await OnClose.InvokeAsync();
+        }
+        catch (ApiException exception)
+        {
+            Toasts.Error(exception.Message);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task SyncSteamAsync()
+    {
+        _busy = true;
+        try
+        {
+            SteamSyncResultDto result = await Api.SyncSteamAsync(CancellationToken.None);
+            await Library.ReloadAsync(CancellationToken.None);
+            Toasts.Success($"{result.NewGames} jogos Steam novos ({result.LibraryCount} na conta).");
+            await OnClose.InvokeAsync();
+        }
+        catch (ApiException exception)
+        {
+            Toasts.Error(exception.Message);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

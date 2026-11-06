@@ -6,6 +6,12 @@ cd /d "%~dp0"
 
 set "HEALTH_URL=http://127.0.0.1:5199/health"
 set "STARTED_API="
+rem First run on a PC: the stores are read with Chromium (Playwright), which must be installed once.
+if not exist "%LOCALAPPDATA%\ms-playwright\chromium-*" (
+    echo Installing browser component for the stores ^(first run only^)...
+    powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0Api\playwright.ps1" install chromium
+)
+
 
 curl.exe -s -f -o nul --max-time 1 %HEALTH_URL% && goto :open_app
 

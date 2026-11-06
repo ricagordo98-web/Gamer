@@ -146,7 +146,8 @@
         try
         {
             SteamSyncResultDto result = await Api.SyncSteamAsync(CancellationToken.None);
-            Toasts.Success($"{result.LibraryCount} jogos e {result.WishlistCount} na wishlist.");
+            await Library.ReloadAsync(CancellationToken.None);
+            Toasts.Success($"{result.LibraryCount} jogos Steam ({result.NewGames} novos na Biblioteca) e {result.WishlistCount} na wishlist.");
         }
         catch (ApiException exception)
         {

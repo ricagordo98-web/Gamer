@@ -5,6 +5,7 @@
 @inject CartState Cart
 @inject AlertMonitor Alerts
 @inject NavigationManager Navigation
+@using Microsoft.AspNetCore.Components.Routing
 
 @if (_ready && Session.IsAuthenticated)
 {
@@ -12,13 +13,15 @@
         <aside class="sidebar">
             <div class="brand"><Logo Size="36" /><span>Gamer</span></div>
             <nav>
+                <span class="nav-group">Jogar</span>
                 <NavLink class="nav-item" href="" Match="NavLinkMatch.All"><Icon Name="dashboard" /> Painel</NavLink>
-                <NavLink class="nav-item" href="games"><Icon Name="games" /> Jogos</NavLink>
-                <NavLink class="nav-item" href="promotions"><Icon Name="tag" /> Promoções</NavLink>
-                <NavLink class="nav-item" href="stores"><Icon Name="store" /> Lojas</NavLink>
-                <NavLink class="nav-item" href="cart"><Icon Name="cart" /> Compras @CartBadge</NavLink>
-                <NavLink class="nav-item" href="deals"><Icon Name="search" /> Comparar</NavLink>
-                <NavLink class="nav-item" href="steam"><Icon Name="library" /> Steam</NavLink>
+                <NavLink class="nav-item" href="games"><Icon Name="games" /> Biblioteca</NavLink>
+                <NavLink class="nav-item" href="random"><Icon Name="dice" /> Sorteio</NavLink>
+
+                <span class="nav-group">Comprar</span>
+                <NavLink class="@("nav-item " + ShopClass)" href="promotions"><Icon Name="store" /> Loja @CartBadge</NavLink>
+
+                <span class="nav-group">Sistema</span>
                 <NavLink class="nav-item" href="settings"><Icon Name="settings" /> Definições</NavLink>
             </nav>
         </aside>
@@ -27,23 +30,33 @@
 
         <nav class="tabbar">
             <NavLink class="tab" href="" Match="NavLinkMatch.All"><Icon Name="dashboard" Size="22" /><span>Painel</span></NavLink>
-            <NavLink class="tab" href="games"><Icon Name="games" Size="22" /><span>Jogos</span></NavLink>
-            <NavLink class="tab" href="promotions"><Icon Name="tag" Size="22" /><span>Promoções</span></NavLink>
-            <NavLink class="tab" href="stores"><Icon Name="store" Size="22" /><span>Lojas</span></NavLink>
-            <NavLink class="tab" href="cart"><Icon Name="cart" Size="22" /><span>Compras</span>@CartBadge</NavLink>
-            <NavLink class="tab" href="deals"><Icon Name="search" Size="22" /><span>Comparar</span></NavLink>
-            <NavLink class="tab" href="steam"><Icon Name="library" Size="22" /><span>Steam</span></NavLink>
+            <NavLink class="tab" href="games"><Icon Name="games" Size="22" /><span>Biblioteca</span></NavLink>
+            <NavLink class="tab" href="random"><Icon Name="dice" Size="22" /><span>Sorteio</span></NavLink>
+            <NavLink class="@("tab " + ShopClass)" href="promotions"><Icon Name="store" Size="22" /><span>Loja</span>@CartBadge</NavLink>
             <NavLink class="tab" href="settings"><Icon Name="settings" Size="22" /><span>Definições</span></NavLink>
         </nav>
     </div>
 }
 
 @code {
+    private static readonly string[] ShopRoutes = ["promotions", "stores", "deals", "wishlist", "steam", "cart"];
+
     private bool _ready;
+
+    private string ShopClass => IsShopRoute() ? "shop-active" : string.Empty;
+
+    private bool IsShopRoute()
+    {
+        string path = Navigation.ToBaseRelativePath(Navigation.Uri).Split('?', '#')[0].Trim('/');
+        return ShopRoutes.Contains(path, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e) => InvokeAsync(StateHasChanged);
 
     protected override async Task OnInitializedAsync()
     {
         Session.Changed += OnSessionChanged;
+        Navigation.LocationChanged += OnLocationChanged;
         Cart.Changed += OnCartChanged;
         await Session.InitializeAsync();
         _ready = true;
@@ -71,6 +84,7 @@
     public void Dispose()
     {
         Session.Changed -= OnSessionChanged;
+        Navigation.LocationChanged -= OnLocationChanged;
         Cart.Changed -= OnCartChanged;
     }
 

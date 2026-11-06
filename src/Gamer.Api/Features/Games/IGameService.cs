@@ -9,4 +9,5 @@ public interface IGameService
     Task<GameDto?> UpdateAsync(int id, GameRequest request, CancellationToken cancellationToken);
     Task<GameDto?> ChangeStatusAsync(int id, GameStatus status, CancellationToken cancellationToken);
     Task<bool> DeleteAsync(int id, CancellationToken cancellationToken);
+    Task<ImportResultDto> BulkAddAsync(BulkAddRequest request, CancellationToken cancellationToken);
 }

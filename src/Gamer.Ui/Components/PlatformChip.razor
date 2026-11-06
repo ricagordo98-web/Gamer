@@ -1,4 +1,4 @@
-﻿<span class="chip-platform fam-@Family.ToLowerInvariant()">@Name</span>
+<span class="chip-platform fam-@Family.ToLowerInvariant() plat-@Slug(Name)">@Name</span>
 
 @code {
     [Parameter, EditorRequired]
@@ -6,4 +6,7 @@
 
     [Parameter, EditorRequired]
     public string Family { get; set; } = string.Empty;
+
+    public static string Slug(string name) =>
+        new string(name.ToLowerInvariant().Where(char.IsLetterOrDigit).ToArray());
 }

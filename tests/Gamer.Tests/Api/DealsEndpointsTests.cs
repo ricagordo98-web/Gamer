@@ -117,7 +117,7 @@ public sealed class DealsEndpointsTests : IClassFixture<GamerApiFactory>
         List<WishlistItemDto>? wishlist = await client.GetFromJsonAsync<List<WishlistItemDto>>("/api/steam/wishlist");
 
         body.Should().NotContain("secret-key").And.Contain("\"apiKeyConfigured\":true");
-        result.Should().Be(new SteamSyncResultDto(1, 1));
+        result.Should().Be(new SteamSyncResultDto(1, 1, 1));
         library!.Single().Title.Should().Be("Owned Game");
         wishlist!.Single().Title.Should().Be("Hades");
     }

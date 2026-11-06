@@ -41,6 +41,26 @@ public class GameFilterTests
     }
 
     [Fact]
+    public void Apply_FamilyChange_ResetsPlatformAndFiltersByFamily()
+    {
+        GameFilter filter = new() { PlatformId = 2 };
+
+        filter.Family = "PlayStation";
+
+        filter.PlatformId.Should().BeNull();
+        filter.Apply(_games).Should().HaveCount(3);
+        new GameFilter { Family = "PC" }.Apply(_games).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Apply_SortByStatus_PutsPlayingFirst()
+    {
+        GameFilter filter = new() { Sort = GameSort.Status };
+
+        filter.Apply(_games).Select(g => g.Id).Should().Equal(1, 3, 2);
+    }
+
+    [Fact]
     public void ApplyExceptStatus_IgnoresStatus()
     {
         GameFilter filter = new() { Status = GameStatus.Completed };

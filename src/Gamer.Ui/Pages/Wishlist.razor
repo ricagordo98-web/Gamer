@@ -1,18 +1,19 @@
+@page "/wishlist"
 @page "/steam"
 @inject IGamerApi Api
+@inject GameLibrary Library
 @inject ToastService Toasts
 
+<ShopTabs />
+
 <header class="page-header">
-    <h1>Steam</h1>
+    <h1>Wishlist Steam <small>@_wishlist.Count</small></h1>
     <button class="btn" @onclick="SyncAsync" disabled="@_syncing">
-        <Icon Name="refresh" Size="18" /> @(_syncing ? "A sincronizar…" : "Sincronizar")
+        <Icon Name="refresh" Size="18" /> @(_syncing ? "A sincronizar…" : "Sincronizar Steam")
     </button>
 </header>
 
-<div class="chips tabs">
-    <button class="chip @(!_showLibrary ? "on" : string.Empty)" @onclick="() => _showLibrary = false">Wishlist <b>@_wishlist.Count</b></button>
-    <button class="chip @(_showLibrary ? "on" : string.Empty)" @onclick="() => _showLibrary = true">Biblioteca <b>@_library.Count</b></button>
-</div>
+<p class="muted deal-help">Os jogos da tua wishlist da Steam. Os da tua biblioteca Steam são adicionados automaticamente à Biblioteca ao sincronizar. Para saberes onde estão mais baratos, usa Comparar preços.</p>
 
 <label class="search steam-search">
     <Icon Name="search" Size="18" />
@@ -30,28 +31,12 @@ else if (_error is not null)
         <button class="btn btn-primary" @onclick="LoadAsync">Tentar de novo</button>
     </div>
 }
-else if (_showLibrary)
+else if (_wishlist.Count == 0)
 {
-    @if (_library.Count == 0)
-    {
-        <div class="empty"><p>Sem jogos. Configura a Steam nas Definições e sincroniza.</p></div>
-    }
-
-    @foreach (SteamLibraryItemDto item in _library.Where(i => Matches(i.Title)))
-    {
-        <div class="card steam-row">
-            <span class="game-title">@item.Title</span>
-            <span class="muted">@DealFormat.Playtime(item.PlaytimeMinutes)</span>
-        </div>
-    }
+    <div class="empty"><p>Wishlist vazia. Configura a Steam nas Definições e sincroniza.</p></div>
 }
 else
 {
-    @if (_wishlist.Count == 0)
-    {
-        <div class="empty"><p>Wishlist vazia. Configura a Steam nas Definições e sincroniza.</p></div>
-    }
-
     @foreach (WishlistItemDto item in _wishlist.Where(i => Matches(i.Title)))
     {
         <div class="card steam-row">
@@ -65,11 +50,9 @@ else
 }
 
 @code {
-    private List<SteamLibraryItemDto> _library = [];
     private List<WishlistItemDto> _wishlist = [];
     private string _filter = string.Empty;
     private string? _error;
-    private bool _showLibrary;
     private bool _loading = true;
     private bool _syncing;
 
@@ -84,7 +67,6 @@ else
         _error = null;
         try
         {
-            _library = (await Api.GetSteamLibraryAsync(CancellationToken.None)).ToList();
             _wishlist = (await Api.GetWishlistAsync(CancellationToken.None)).ToList();
         }
         catch (ApiException exception)
@@ -104,7 +86,8 @@ else
         {
             SteamSyncResultDto result = await Api.SyncSteamAsync(CancellationToken.None);
             await LoadAsync();
-            Toasts.Success($"{result.LibraryCount} jogos e {result.WishlistCount} na wishlist.");
+            await Library.ReloadAsync(CancellationToken.None);
+            Toasts.Success($"{result.WishlistCount} jogos na wishlist; {result.NewGames} novos na Biblioteca.");
         }
         catch (ApiException exception)
         {

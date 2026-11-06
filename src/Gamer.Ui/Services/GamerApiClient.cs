@@ -30,6 +30,9 @@ public class GamerApiClient(HttpClient http) : IGamerApi
     public async Task DeleteGameAsync(int id, CancellationToken cancellationToken) =>
         await SendAsync(() => http.DeleteAsync($"api/games/{id}", cancellationToken), cancellationToken);
 
+    public Task<ImportResultDto> BulkAddGamesAsync(BulkAddRequest request, CancellationToken cancellationToken) =>
+        SendAsync<ImportResultDto>(() => http.PostAsJsonAsync("api/games/bulk", request, cancellationToken), cancellationToken);
+
     public Task<ImportResultDto> ImportAsync(Stream workbook, string fileName, CancellationToken cancellationToken)
     {
         MultipartFormDataContent form = new() { { new StreamContent(workbook), "file", fileName } };

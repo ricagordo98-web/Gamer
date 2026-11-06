@@ -1,0 +1,27 @@
+@implements IDisposable
+@inject CartState Cart
+
+<div class="shop-head">
+    <div class="shop-title"><Icon Name="store" Size="18" /> Loja</div>
+    <nav class="shop-tabs" aria-label="Secções da loja">
+        <NavLink class="shop-tab" href="promotions"><Icon Name="tag" Size="18" /><span>Promoções</span></NavLink>
+        <NavLink class="shop-tab" href="stores"><Icon Name="store" Size="18" /><span>Lojas e bundles</span></NavLink>
+        <NavLink class="shop-tab" href="deals"><Icon Name="scale" Size="18" /><span>Comparar preços</span></NavLink>
+        <NavLink class="shop-tab" href="wishlist"><Icon Name="heart" Size="18" /><span>Wishlist</span></NavLink>
+        <NavLink class="shop-tab" href="cart">
+            <Icon Name="cart" Size="18" /><span>Carrinho</span>
+            @if (Cart.AlertCount > 0)
+            {
+                <span class="nav-badge">@Cart.AlertCount</span>
+            }
+        </NavLink>
+    </nav>
+</div>
+
+@code {
+    protected override void OnInitialized() => Cart.Changed += OnChanged;
+
+    public void Dispose() => Cart.Changed -= OnChanged;
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+}

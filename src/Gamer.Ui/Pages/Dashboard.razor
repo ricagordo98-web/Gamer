@@ -36,19 +36,10 @@ else
         <div class="tile deck"><strong>@stats.OnDeck</strong><span>No Deck</span></div>
     </section>
 
-    <section class="card suggest">
-        <div class="suggest-head">
-            <div>
-                <h3>Não sabes o que jogar?</h3>
-                <p class="muted">Deixa a sorte escolher do teu backlog.</p>
-            </div>
-            <button class="btn btn-primary" @onclick="PickRandom"><Icon Name="shuffle" Size="18" /> Sugere-me</button>
-        </div>
-
-        @if (_suggestion is not null)
-        {
-            <GameCard Game="_suggestion" OnOpen="() => _editing = _suggestion" OnAdvance="StartSuggestionAsync" />
-        }
+    <section class="quick-links">
+        <a class="quick quick-roll" href="random"><Icon Name="dice" Size="26" /><div><strong>Sorteio</strong><span>Não sabes o que jogar? Deixa a sorte escolher.</span></div></a>
+        <a class="quick" href="games"><Icon Name="games" Size="26" /><div><strong>Biblioteca</strong><span>@stats.Total jogos em todas as plataformas.</span></div></a>
+        <a class="quick" href="promotions"><Icon Name="store" Size="26" /><div><strong>Loja</strong><span>Promoções, bundles e carrinho.</span></div></a>
     </section>
 
     @if (Library.Games.Any(g => g.Status == GameStatus.Playing))
@@ -79,7 +70,6 @@ else
 }
 
 @code {
-    private GameDto? _suggestion;
     private GameDto? _editing;
 
     protected override async Task OnInitializedAsync()
@@ -91,25 +81,6 @@ else
     public void Dispose() => Library.Changed -= OnLibraryChanged;
 
     private void OnLibraryChanged() => InvokeAsync(StateHasChanged);
-
-    private void PickRandom()
-    {
-        List<GameDto> backlog = Library.Games.Where(g => g.Status == GameStatus.Backlog).ToList();
-        _suggestion = backlog.Count == 0 ? null : backlog[Random.Shared.Next(backlog.Count)];
-    }
-
-    private async Task StartSuggestionAsync()
-    {
-        if (_suggestion is null)
-        {
-            return;
-        }
-
-        if (await Library.SetStatusAsync(_suggestion, GameStatus.Playing, CancellationToken.None))
-        {
-            _suggestion = null;
-        }
-    }
 
     private Task AdvanceAsync(GameDto game) => Library.SetStatusAsync(game, game.Status.Next(), CancellationToken.None);
 }

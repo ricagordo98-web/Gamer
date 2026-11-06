@@ -75,6 +75,48 @@ public class GameService(GamerDbContext db, TimeProvider clock) : IGameService
         return deleted > 0;
     }
 
+    public async Task<ImportResultDto> BulkAddAsync(BulkAddRequest request, CancellationToken cancellationToken)
+    {
+        HashSet<string> existing = (await db.Games
+            .Where(g => g.PlatformId == request.PlatformId)
+            .Select(g => g.Title)
+            .ToListAsync(cancellationToken))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        DateTimeOffset now = clock.GetUtcNow();
+        List<string> duplicates = [];
+        int imported = 0;
+
+        foreach (string raw in request.Titles)
+        {
+            string title = raw.Trim();
+            if (title.Length == 0)
+            {
+                continue;
+            }
+
+            title = title[..Math.Min(title.Length, GameRequestValidator.MaxTitleLength)];
+            if (!existing.Add(title))
+            {
+                duplicates.Add(title);
+                continue;
+            }
+
+            db.Games.Add(new Game
+            {
+                Title = title,
+                PlatformId = request.PlatformId,
+                Status = request.Status,
+                CreatedAt = now,
+                UpdatedAt = now,
+            });
+            imported++;
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+        return new ImportResultDto(imported, duplicates.Count, duplicates);
+    }
+
     private async Task<GameDto> GetAsync(int id, CancellationToken cancellationToken) =>
         await db.Games
             .AsNoTracking()

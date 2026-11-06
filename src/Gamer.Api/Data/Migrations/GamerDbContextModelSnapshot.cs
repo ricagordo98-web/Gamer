@@ -270,6 +270,27 @@ namespace Gamer.Api.Data.Migrations
                             Family = "PC",
                             Format = 1,
                             Name = "Cracked"
+                        },
+                        new
+                        {
+                            Id = 17,
+                            Family = "PC",
+                            Format = 1,
+                            Name = "Battle.net"
+                        },
+                        new
+                        {
+                            Id = 18,
+                            Family = "PC",
+                            Format = 1,
+                            Name = "Ubisoft"
+                        },
+                        new
+                        {
+                            Id = 19,
+                            Family = "PC",
+                            Format = 1,
+                            Name = "Rockstar"
                         });
                 });
 

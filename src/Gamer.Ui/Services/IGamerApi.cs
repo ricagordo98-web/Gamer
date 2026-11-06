@@ -14,6 +14,7 @@ public interface IGamerApi
     Task<GameDto> UpdateGameAsync(int id, GameRequest request, CancellationToken cancellationToken);
     Task<GameDto> ChangeStatusAsync(int id, GameStatus status, CancellationToken cancellationToken);
     Task DeleteGameAsync(int id, CancellationToken cancellationToken);
+    Task<ImportResultDto> BulkAddGamesAsync(BulkAddRequest request, CancellationToken cancellationToken);
     Task<ImportResultDto> ImportAsync(Stream workbook, string fileName, CancellationToken cancellationToken);
     Task<IReadOnlyList<StoreDto>> GetStoresAsync(CancellationToken cancellationToken);
     Task<StoreDto> UpdateStoreAsync(int id, StoreUpdateRequest request, CancellationToken cancellationToken);

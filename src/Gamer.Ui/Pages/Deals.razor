@@ -2,6 +2,8 @@
 @inject IGamerApi Api
 @inject ToastService Toasts
 
+<ShopTabs />
+
 <header class="page-header">
     <h1>Comparar preços</h1>
     <button class="btn" @onclick="RefreshAsync" disabled="@_refreshing">

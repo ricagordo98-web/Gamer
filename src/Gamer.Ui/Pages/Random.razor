@@ -1,0 +1,221 @@
+@page "/random"
+@implements IDisposable
+@inject GameLibrary Library
+
+<header class="page-header">
+    <h1>Sorteio <small>@Pool.Count no saco</small></h1>
+</header>
+
+<p class="muted deal-help">Não sabes o que jogar? Escolhe de onde queres sortear e deixa a sorte decidir.</p>
+
+@if (Library.IsLoading && !Library.IsLoaded)
+{
+    <div class="empty"><div class="spinner"></div><p>A carregar…</p></div>
+}
+else if (Library.LoadError is not null)
+{
+    <div class="empty">
+        <p>@Library.LoadError</p>
+        <button class="btn btn-primary" @onclick="() => Library.ReloadAsync(CancellationToken.None)">Tentar de novo</button>
+    </div>
+}
+else
+{
+    <section class="card roll-filters">
+        <div class="filter-block">
+            <span class="filter-label">Sortear de</span>
+            <div class="chips">
+                <button class="chip st-backlog @(_status == GameStatus.Backlog ? "on" : string.Empty)" @onclick="() => SetStatus(GameStatus.Backlog)">Backlog</button>
+                <button class="chip st-completed @(_status == GameStatus.Completed ? "on" : string.Empty)" @onclick="() => SetStatus(GameStatus.Completed)">Já terminados</button>
+                <button class="chip @(_status is null ? "on" : string.Empty)" @onclick="() => SetStatus(null)">Todos</button>
+            </div>
+        </div>
+
+        <div class="filter-block">
+            <span class="filter-label">Plataformas <small class="muted">(vazio = todas)</small></span>
+            <div class="chips store-chips">
+                @foreach (PlatformDto platform in PlatformsInUse)
+                {
+                    <button class="chip @(_platforms.Contains(platform.Id) ? "on" : string.Empty)" @onclick="() => TogglePlatform(platform.Id)">
+                        @platform.Name <b>@CountFor(platform.Id)</b>
+                    </button>
+                }
+            </div>
+        </div>
+
+        <div class="filters-row">
+            <button class="chip @(_onlyDeck ? "on" : string.Empty)" @onclick="() => { _onlyDeck = !_onlyDeck; _picked = null; }">
+                <Icon Name="deck" Size="16" /> Só Deck
+            </button>
+        </div>
+    </section>
+
+    <section class="roller @(_rolling ? "rolling" : string.Empty) @(_picked is not null && !_rolling ? "landed" : string.Empty)">
+        <div class="roller-screen">
+            @if (_display is null)
+            {
+                <span class="roller-hint">Carrega em Sortear</span>
+            }
+            else
+            {
+                <span class="roller-title">@_display.Title</span>
+                <PlatformChip Name="@_display.PlatformName" Family="@_display.PlatformFamily" />
+            }
+        </div>
+
+        <button class="btn btn-primary roll-btn" @onclick="RollAsync" disabled="@(_rolling || Pool.Count == 0)">
+            <Icon Name="dice" Size="22" /> @(_rolling ? "A sortear…" : _picked is null ? "Sortear" : "Sortear outro")
+        </button>
+
+        @if (Pool.Count == 0)
+        {
+            <p class="muted">Nenhum jogo com estes filtros. Alarga a escolha ou adiciona jogos na Biblioteca.</p>
+        }
+    </section>
+
+    @if (_picked is not null && !_rolling)
+    {
+        <section class="card roll-result">
+            <h3>Hoje vais jogar…</h3>
+            <GameCard Game="_picked" OnOpen="() => _editing = _picked" OnAdvance="StartAsync" />
+            <div class="roll-actions">
+                @if (_picked.Status != GameStatus.Playing)
+                {
+                    <button class="btn btn-primary" @onclick="StartAsync"><Icon Name="play" Size="18" /> Vou jogar este</button>
+                }
+                <button class="btn" @onclick="RollAsync"><Icon Name="shuffle" Size="18" /> Outro</button>
+            </div>
+        </section>
+    }
+}
+
+@if (_editing is not null)
+{
+    <GameEditor Game="_editing" OnClose="() => _editing = null" />
+}
+
+@code {
+    private readonly HashSet<int> _platforms = [];
+    private CancellationTokenSource? _cts;
+    private GameStatus? _status = GameStatus.Backlog;
+    private bool _onlyDeck;
+    private bool _rolling;
+    private GameDto? _picked;
+    private GameDto? _display;
+    private GameDto? _editing;
+
+    private List<GameDto> Pool => Library.Games
+        .Where(g => (_status is null || g.Status == _status)
+            && (_platforms.Count == 0 || _platforms.Contains(g.PlatformId))
+            && (!_onlyDeck || g.OnDeck))
+        .ToList();
+
+    private IEnumerable<PlatformDto> PlatformsInUse
+    {
+        get
+        {
+            HashSet<int> used = Library.Games.Where(g => _status is null || g.Status == _status).Select(g => g.PlatformId).ToHashSet();
+            return Library.Platforms.Where(p => used.Contains(p.Id));
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Library.Changed += OnLibraryChanged;
+        await Library.EnsureLoadedAsync(CancellationToken.None);
+    }
+
+    public void Dispose()
+    {
+        Library.Changed -= OnLibraryChanged;
+        _cts?.Cancel();
+    }
+
+    private void OnLibraryChanged() => InvokeAsync(StateHasChanged);
+
+    private int CountFor(int platformId) =>
+        Library.Games.Count(g => g.PlatformId == platformId && (_status is null || g.Status == _status) && (!_onlyDeck || g.OnDeck));
+
+    private void SetStatus(GameStatus? status)
+    {
+        _status = status;
+        _picked = null;
+        _display = null;
+    }
+
+    private void TogglePlatform(int id)
+    {
+        if (!_platforms.Remove(id))
+        {
+            _platforms.Add(id);
+        }
+
+        _picked = null;
+    }
+
+    private async Task RollAsync()
+    {
+        List<GameDto> pool = Pool;
+        if (pool.Count == 0 || _rolling)
+        {
+            return;
+        }
+
+        _cts?.Cancel();
+        _cts = new CancellationTokenSource();
+        CancellationToken token = _cts.Token;
+        _rolling = true;
+        _picked = null;
+
+        GameDto final = pool.Count == 1 ? pool[0] : PickDifferent(pool, _display);
+        try
+        {
+            const int steps = 22;
+            for (int i = 0; i < steps; i++)
+            {
+                _display = pool[System.Random.Shared.Next(pool.Count)];
+                StateHasChanged();
+                await Task.Delay(45 + i * i / 3, token);
+            }
+
+            _display = final;
+            _picked = final;
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        finally
+        {
+            _rolling = false;
+        }
+
+        StateHasChanged();
+    }
+
+    private static GameDto PickDifferent(List<GameDto> pool, GameDto? previous)
+    {
+        GameDto candidate;
+        do
+        {
+            candidate = pool[System.Random.Shared.Next(pool.Count)];
+        }
+        while (previous is not null && candidate.Id == previous.Id);
+
+        return candidate;
+    }
+
+    private async Task StartAsync()
+    {
+        if (_picked is null)
+        {
+            return;
+        }
+
+        if (await Library.SetStatusAsync(_picked, GameStatus.Playing, CancellationToken.None))
+        {
+            _picked = _picked with { Status = GameStatus.Playing };
+            _display = _picked;
+        }
+    }
+}

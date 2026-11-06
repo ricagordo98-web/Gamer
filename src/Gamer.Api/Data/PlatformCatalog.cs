@@ -28,6 +28,9 @@ public static class PlatformCatalog
         new() { Id = 14, Name = "Epic", Family = PcFamily, Format = PlatformFormat.Digital },
         new() { Id = 15, Name = "GOG", Family = PcFamily, Format = PlatformFormat.Digital },
         new() { Id = 16, Name = "Cracked", Family = PcFamily, Format = PlatformFormat.Digital },
+        new() { Id = 17, Name = "Battle.net", Family = PcFamily, Format = PlatformFormat.Digital },
+        new() { Id = 18, Name = "Ubisoft", Family = PcFamily, Format = PlatformFormat.Digital },
+        new() { Id = 19, Name = "Rockstar", Family = PcFamily, Format = PlatformFormat.Digital },
     ];
 
     public static Platform? FindByName(string name) =>

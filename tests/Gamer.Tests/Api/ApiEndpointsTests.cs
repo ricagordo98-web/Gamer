@@ -47,7 +47,32 @@ public sealed class ApiEndpointsTests : IClassFixture<GamerApiFactory>
 
         List<PlatformDto>? platforms = await client.GetFromJsonAsync<List<PlatformDto>>("/api/platforms");
 
-        platforms.Should().HaveCount(16);
+        platforms.Should().HaveCount(19);
+    }
+
+    [Fact]
+    public async Task BulkAdd_NewAndExistingTitles_AddsOnlyNewOnes()
+    {
+        HttpClient client = await CreateAuthorizedClientAsync();
+        const int gog = 15;
+
+        HttpResponseMessage first = await client.PostAsJsonAsync("/api/games/bulk", new BulkAddRequest(gog, GameStatus.Backlog, ["Witcher 3", " Control ", ""]));
+        HttpResponseMessage second = await client.PostAsJsonAsync("/api/games/bulk", new BulkAddRequest(gog, GameStatus.Backlog, ["witcher 3", "Alan Wake"]));
+
+        (await first.Content.ReadFromJsonAsync<ImportResultDto>())!.Imported.Should().Be(2);
+        ImportResultDto result = (await second.Content.ReadFromJsonAsync<ImportResultDto>())!;
+        result.Imported.Should().Be(1);
+        result.Duplicates.Should().Equal("witcher 3");
+    }
+
+    [Fact]
+    public async Task BulkAdd_UnknownPlatform_ReturnsBadRequest()
+    {
+        HttpClient client = await CreateAuthorizedClientAsync();
+
+        HttpResponseMessage response = await client.PostAsJsonAsync("/api/games/bulk", new BulkAddRequest(999, GameStatus.Backlog, ["X"]));
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
     [Fact]
