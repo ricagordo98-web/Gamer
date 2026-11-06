@@ -1,7 +1,11 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using FluentAssertions;
+using Gamer.Api.Data;
+using Gamer.Api.Domain;
 using Gamer.Api.Features.Library;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Gamer.Contracts.Auth;
 using Gamer.Contracts.Games;
 using Gamer.Contracts.Library;
@@ -47,11 +51,11 @@ public sealed class LibrarySourcesTests : IClassFixture<GamerApiFactory>
 
             games.Select(g => (g.Title, g.PlatformName)).Should().BeEquivalentTo(
             [
-                ("Diablo", "PS1 (Emu)"),
-                ("Armored Core", "PS1 (Emu)"),
-                ("Demon's Souls", "PS3 (Emu)"),
+                ("Diablo", "PS1"),
+                ("Armored Core", "PS1"),
+                ("Demon's Souls", "PS3"),
             ]);
-            games.Should().OnlyContain(g => g.PlatformFamily == "Emulador");
+            games.Should().OnlyContain(g => g.PlatformFamily == "PlayStation");
             Directory.GetFileSystemEntries(root, "*", SearchOption.AllDirectories).Should().BeEquivalentTo(before);
         }
         finally
@@ -98,7 +102,7 @@ public sealed class LibrarySourcesTests : IClassFixture<GamerApiFactory>
 
             first.Should().Be(new LibrarySyncResultDto(1, 1));
             second.Should().Be(new LibrarySyncResultDto(1, 0));
-            games.Should().Contain(g => g.Title == "ActRaiser" && g.PlatformName == "SNES (Emu)" && g.PlatformFamily == "Emulador");
+            games.Should().Contain(g => g.Title == "ActRaiser" && g.PlatformName == "SNES" && g.PlatformFamily == "Nintendo");
             File.Exists(Path.Combine(root, "SNES", "ActRaiser (Europe).sfc")).Should().BeTrue();
         }
         finally
@@ -129,7 +133,7 @@ public sealed class LibrarySourcesTests : IClassFixture<GamerApiFactory>
             second.Should().Be(new LibrarySyncResultDto(3, 0));
             games.Should().Contain(g => g.Title == "Hades" && g.PlatformName == "Steam");
             games.Should().Contain(g => g.Title == "Assassin's Creed" && g.PlatformName == "Ubisoft");
-            games.Should().Contain(g => g.Title == "Onimusha 3" && g.PlatformName == "PS2 (Emu)" && g.PlatformFamily == "Emulador");
+            games.Should().Contain(g => g.Title == "Onimusha 3" && g.PlatformName == "PS2" && g.PlatformFamily == "PlayStation");
             games.Should().NotContain(g => g.Title == "Hidden");
             Directory.GetFileSystemEntries(root, "*", SearchOption.AllDirectories).Should().BeEquivalentTo(before);
         }
@@ -137,6 +141,30 @@ public sealed class LibrarySourcesTests : IClassFixture<GamerApiFactory>
         {
             Directory.Delete(root, recursive: true);
         }
+    }
+
+    [Fact]
+    public async Task Tidy_FoldsEmuPlatformsIntoTheRealOne_AndKeepsGamesWithProgress()
+    {
+        using IServiceScope scope = _factory.Services.CreateScope();
+        GamerDbContext db = scope.ServiceProvider.GetRequiredService<GamerDbContext>();
+        Platform ps2 = db.Platforms.Single(p => p.Name == "PS2");
+        Platform emu = new() { Name = "PS2 (Emu)", Family = "Emulador", Format = PlatformFormat.Digital };
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        db.Games.AddRange(
+            new Game { Title = "Tidy Game", Platform = ps2, Status = GameStatus.Completed, CreatedAt = now, UpdatedAt = now },
+            new Game { Title = "Tidy Game", Platform = emu, Status = GameStatus.Backlog, CreatedAt = now, UpdatedAt = now },
+            new Game { Title = "Tidy Only Emu", Platform = emu, Status = GameStatus.Backlog, CreatedAt = now, UpdatedAt = now });
+        await db.SaveChangesAsync();
+
+        await LibraryMaintenance.TidyAsync(db, CancellationToken.None);
+        await LibraryMaintenance.TidyAsync(db, CancellationToken.None);
+
+        db.Platforms.Any(p => p.Name == "PS2 (Emu)").Should().BeFalse();
+        List<Game> games = db.Games.Include(g => g.Platform).Where(g => g.Title.StartsWith("Tidy")).ToList();
+        games.Should().HaveCount(2);
+        games.Single(g => g.Title == "Tidy Game").Status.Should().Be(GameStatus.Completed);
+        games.Should().OnlyContain(g => g.Platform.Name == "PS2");
     }
 
     [Fact]

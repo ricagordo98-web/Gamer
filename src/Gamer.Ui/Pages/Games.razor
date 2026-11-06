@@ -48,9 +48,27 @@ else if (overview)
     }
     else
     {
-        <div class="lib-top">
-            <button class="chip" @onclick="() => _showAll = true">Ver todos os jogos <b>@Library.Games.Count</b></button>
-        </div>
+        <section class="lib-hero">
+            <div class="hero-total">
+                <span class="hero-kicker">A tua coleção</span>
+                <strong>@Library.Games.Count.ToString("N0", Pt)</strong>
+                <small>jogos em @Library.Games.Select(g => g.PlatformId).Distinct().Count() plataformas</small>
+                <button class="btn" @onclick="() => _showAll = true">Ver todos os jogos</button>
+            </div>
+            <div class="hero-stats">
+                @foreach ((GameStatus status, int count) in StatusTotals)
+                {
+                    <button class="hero-stat st-@status.CssClass()" @onclick="() => OpenStatus(status)">
+                        <span>@status.Label()</span>
+                        <strong>@count.ToString("N0", Pt)</strong>
+                        <small>@(100 * count / Library.Games.Count)%</small>
+                    </button>
+                }
+                <div class="seg-bar seg-big" aria-hidden="true">
+                    <i class="done" style="width:@Percent(CountOf(GameStatus.Completed), Library.Games.Count)%"></i><i class="play" style="width:@Percent(CountOf(GameStatus.Playing), Library.Games.Count)%"></i>
+                </div>
+            </div>
+        </section>
 
         @foreach (string family in FamiliesInUse)
         {
@@ -65,11 +83,12 @@ else if (overview)
                     {
                         List<GameDto> games = Library.Games.Where(g => g.PlatformId == platform.Id).ToList();
                         int done = games.Count(g => g.Status == GameStatus.Completed);
+                        int playing = games.Count(g => g.Status == GameStatus.Playing);
                         <button class="plat-tile fam-@platform.Family.ToLowerInvariant() plat-@PlatformChip.Slug(platform.Name)" @onclick="() => OpenPlatform(platform)">
                             <span class="plat-name">@DisplayName(platform)</span>
                             <strong>@games.Count</strong>
-                            <span class="plat-bar"><i style="width:@(100 * done / games.Count)%"></i></span>
-                            <span class="plat-sub">@done terminados@(games.Any(g => g.Status == GameStatus.Playing) ? $" · {games.Count(g => g.Status == GameStatus.Playing)} a jogar" : string.Empty)</span>
+                            <span class="seg-bar" aria-hidden="true"><i class="done" style="width:@Percent(done, games.Count)%"></i><i class="play" style="width:@Percent(playing, games.Count)%"></i></span>
+                            <span class="plat-sub">@done terminados · @playing a jogar · @(games.Count - done - playing) por jogar</span>
                         </button>
                     }
                 </div>
@@ -79,6 +98,7 @@ else if (overview)
 }
 else
 {
+    <div class="lib-bar">
     <nav class="crumbs" aria-label="Localização">
         <button class="link-btn" @onclick="BackToOverview"><Icon Name="dashboard" Size="14" /> Biblioteca</button>
         @if (filter.Family is not null)
@@ -101,6 +121,7 @@ else
             <span>›</span>
             <span class="current">Todos os jogos</span>
         }
+        <span class="crumb-count">@visible.Count @(visible.Count == 1 ? "jogo" : "jogos")</span>
     </nav>
 
     @if (filter.Family is not null)
@@ -116,7 +137,7 @@ else
         </div>
     }
 
-    <div class="toolbar">
+    <div class="lib-tools">
         <div class="chips">
             <button class="chip @(filter.Status is null ? "on" : string.Empty)" @onclick="() => filter.Status = null">Todos <b>@forCounts.Count</b></button>
             @foreach (GameStatus status in Enum.GetValues<GameStatus>())
@@ -137,6 +158,7 @@ else
                 <option value="@GameSort.Status">Ordenar: estado</option>
             </select>
         </div>
+    </div>
     </div>
 
     @if (visible.Count == 0)
@@ -175,7 +197,7 @@ else if (_editing is not null)
 }
 
 @code {
-    private static readonly string[] FamilyOrder = ["PC", "PlayStation", "Nintendo", "Emulador", "Other"];
+    private static readonly string[] FamilyOrder = ["PC", "PlayStation", "Nintendo", "Other"];
 
     private GameDto? _editing;
     private bool _adding;
@@ -212,7 +234,22 @@ else if (_editing is not null)
         _ => family,
     };
 
-    private static string DisplayName(PlatformDto platform) => platform.Name.Replace(" (Emu)", string.Empty);
+    private static string DisplayName(PlatformDto platform) => platform.Name;
+
+    private static readonly System.Globalization.CultureInfo Pt = new("pt-PT");
+
+    private List<(GameStatus Status, int Count)> StatusTotals => [.. Enum.GetValues<GameStatus>().Select(s => (s, Library.Games.Count(g => g.Status == s)))];
+
+    private int CountOf(GameStatus status) => Library.Games.Count(g => g.Status == status);
+
+    private static int Percent(int part, int total) => total == 0 ? 0 : (int)Math.Round(100.0 * part / total);
+
+    private void OpenStatus(GameStatus status)
+    {
+        Library.Filter.Reset();
+        _showAll = true;
+        Library.Filter.Status = status;
+    }
 
     private void OpenFamily(string? family)
     {

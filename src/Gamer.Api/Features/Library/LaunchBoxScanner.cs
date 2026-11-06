@@ -25,22 +25,6 @@ public sealed class LaunchBoxScanner(IServiceScopeFactory scopes) : ILibraryScan
         ["rockstar"] = "Rockstar",
     };
 
-    private static readonly Dictionary<string, string> ConsolePlatforms = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["Sony Playstation"] = "PS1",
-        ["Sony Playstation 2"] = "PS2",
-        ["Sony Playstation 3"] = "PS3",
-        ["Sony PSP"] = "PSP",
-        ["Nintendo Entertainment System"] = "NES",
-        ["Super Nintendo Entertainment System"] = "SNES",
-        ["Nintendo 64"] = "N64",
-        ["Nintendo GameCube"] = "GameCube",
-        ["Nintendo Wii"] = "Wii",
-        ["Nintendo Wii U"] = "Wii U",
-        ["Nintendo DS"] = "NDS",
-        ["Nintendo Game Boy Advance"] = "GBA",
-    };
-
     public static string DefaultPath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "LaunchBox");
 
     public string Id => "launchbox";
@@ -129,7 +113,7 @@ public sealed class LaunchBoxScanner(IServiceScopeFactory scopes) : ILibraryScan
             return null;
         }
 
-        return new ScannedGame(title, $"{ConsolePlatforms.GetValueOrDefault(launchBoxPlatform, launchBoxPlatform)} (Emu)", EmulatorScanner.EmulatorFamily);
+        return ConsolePlatforms.Resolve(title, launchBoxPlatform);
     }
 
     private static string PlatformsFolder(string root) => Path.Combine(root, "Data", "Platforms");

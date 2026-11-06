@@ -30,7 +30,9 @@ WebApplication app = builder.Build();
 
 await using (AsyncServiceScope scope = app.Services.CreateAsyncScope())
 {
-    await scope.ServiceProvider.GetRequiredService<GamerDbContext>().Database.MigrateAsync();
+    GamerDbContext startupDb = scope.ServiceProvider.GetRequiredService<GamerDbContext>();
+    await startupDb.Database.MigrateAsync();
+    await LibraryMaintenance.TidyAsync(startupDb, CancellationToken.None);
 }
 
 app.UseExceptionHandler();

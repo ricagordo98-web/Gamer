@@ -19,23 +19,6 @@ public sealed class EmulatorScanner(IServiceScopeFactory scopes) : ILibraryScann
         ".z64", ".v64", ".n64", ".nds", ".3ds", ".sfc", ".smc", ".nes", ".gba", ".gb", ".gbc", ".md", ".gen", ".sms", ".gg",
     };
 
-    private static readonly Dictionary<string, string> ConsoleNames = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["gamecube"] = "GameCube",
-        ["wii"] = "Wii",
-        ["wiiu"] = "Wii U",
-        ["nds"] = "NDS",
-        ["gba"] = "GBA",
-        ["ps1"] = "PS1",
-        ["psx"] = "PS1",
-        ["ps2"] = "PS2",
-        ["ps3"] = "PS3",
-        ["psp"] = "PSP",
-        ["n64"] = "N64",
-        ["snes"] = "SNES",
-        ["nes"] = "NES",
-    };
-
     public string Id => "emulator";
     public string Name => "Emuladores";
     public string Kind => "folder";
@@ -78,7 +61,7 @@ public sealed class EmulatorScanner(IServiceScopeFactory scopes) : ILibraryScann
                 continue;
             }
 
-            string platform = $"{ConsoleNames.GetValueOrDefault(folderName, folderName)} (Emu)";
+            string console = folderName;
             HashSet<string> titles = new(StringComparer.OrdinalIgnoreCase);
             foreach (string entry in Directory.EnumerateFileSystemEntries(consoleFolder))
             {
@@ -91,7 +74,7 @@ public sealed class EmulatorScanner(IServiceScopeFactory scopes) : ILibraryScann
                 string title = EmulatorTitles.Clean(Path.GetFileName(entry), hasExtension: !isFolder);
                 if (title.Length > 0 && titles.Add(title))
                 {
-                    games.Add(new ScannedGame(title, platform, EmulatorFamily));
+                    games.Add(ConsolePlatforms.Resolve(title, console));
                 }
             }
         }

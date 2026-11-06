@@ -1,5 +1,6 @@
 using Gamer.Api.Data;
 using Gamer.Api.Domain;
+using Gamer.Api.Features.Deals;
 using Gamer.Api.Features.Steam;
 using Gamer.Contracts.Games;
 using Gamer.Contracts.Library;
@@ -83,13 +84,19 @@ public class LibrarySourceService(
         await db.SaveChangesAsync(cancellationToken);
     }
 
+    public static string TitleKey(string title, string platformName)
+    {
+        string normalized = TitleMatcher.Normalize(title);
+        return $"{(normalized.Length > 0 ? normalized : title.ToLowerInvariant())}|{platformName}";
+    }
+
     private async Task<int> AddMissingAsync(IReadOnlyList<ScannedGame> found, CancellationToken cancellationToken)
     {
         Dictionary<string, Platform> platforms = await db.Platforms.ToDictionaryAsync(p => p.Name, StringComparer.OrdinalIgnoreCase, cancellationToken);
         HashSet<string> known = (await db.Games
                 .Select(g => new { g.Title, PlatformName = g.Platform.Name })
                 .ToListAsync(cancellationToken))
-            .Select(g => $"{g.Title}|{g.PlatformName}")
+            .Select(g => TitleKey(g.Title, g.PlatformName))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         DateTimeOffset now = clock.GetUtcNow();
@@ -103,7 +110,7 @@ public class LibrarySourceService(
             }
 
             title = title[..Math.Min(title.Length, MaxTitleLength)];
-            if (!known.Add($"{title}|{game.PlatformName}"))
+            if (!known.Add(TitleKey(title, game.PlatformName)))
             {
                 continue;
             }
