@@ -46,6 +46,15 @@ public class GamerApiClient(HttpClient http) : IGamerApi
     public async Task<IReadOnlyList<LibrarySourceDto>> SaveSourcePathAsync(string id, string path, CancellationToken cancellationToken) =>
         await SendAsync<List<LibrarySourceDto>>(() => http.PutAsJsonAsync($"api/library/sources/{Uri.EscapeDataString(id)}/path", new EmulatorPathRequest(path), cancellationToken), cancellationToken);
 
+    public async Task<IReadOnlyList<DuplicateGroupDto>> GetDuplicatesAsync(CancellationToken cancellationToken) =>
+        await SendAsync<List<DuplicateGroupDto>>(() => http.GetAsync("api/library/duplicates", cancellationToken), cancellationToken);
+
+    public async Task MergeDuplicatesAsync(MergeDuplicatesRequest request, CancellationToken cancellationToken) =>
+        await SendAsync(() => http.PostAsJsonAsync("api/library/duplicates/merge", request, cancellationToken), cancellationToken);
+
+    public async Task IgnoreDuplicatesAsync(IReadOnlyList<int> ids, CancellationToken cancellationToken) =>
+        await SendAsync(() => http.PostAsJsonAsync("api/library/duplicates/ignore", new IgnoreDuplicatesRequest(ids), cancellationToken), cancellationToken);
+
     public Task<ImportResultDto> ImportAsync(Stream workbook, string fileName, CancellationToken cancellationToken)
     {
         MultipartFormDataContent form = new() { { new StreamContent(workbook), "file", fileName } };

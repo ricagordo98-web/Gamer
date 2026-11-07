@@ -20,6 +20,9 @@ public interface IGamerApi
     Task<LibrarySyncResultDto> SyncLibrarySourceAsync(string id, CancellationToken cancellationToken);
     Task<IReadOnlyList<LibrarySourceDto>> SaveEmulatorPathAsync(string path, CancellationToken cancellationToken);
     Task<IReadOnlyList<LibrarySourceDto>> SaveSourcePathAsync(string id, string path, CancellationToken cancellationToken);
+    Task<IReadOnlyList<DuplicateGroupDto>> GetDuplicatesAsync(CancellationToken cancellationToken);
+    Task MergeDuplicatesAsync(MergeDuplicatesRequest request, CancellationToken cancellationToken);
+    Task IgnoreDuplicatesAsync(IReadOnlyList<int> ids, CancellationToken cancellationToken);
     Task<ImportResultDto> ImportAsync(Stream workbook, string fileName, CancellationToken cancellationToken);
     Task<IReadOnlyList<StoreDto>> GetStoresAsync(CancellationToken cancellationToken);
     Task<StoreDto> UpdateStoreAsync(int id, StoreUpdateRequest request, CancellationToken cancellationToken);

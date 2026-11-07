@@ -1,0 +1,126 @@
+@inject GameLibrary Library
+@inject IGamerApi Api
+@inject ToastService Toasts
+
+<div class="overlay" @onclick="OnClose">
+    <div class="sheet sheet-wide" role="dialog" aria-modal="true" @onclick:stopPropagation="true">
+        <div class="sheet-header">
+            <h2>Possíveis duplicados</h2>
+            <button type="button" class="icon-btn" @onclick="OnClose" aria-label="Fechar"><Icon Name="x" /></button>
+        </div>
+
+        <p class="muted source-intro">Jogos da mesma plataforma com nomes muito parecidos. Ao juntar, fica o que escolheres (o terminado tem prioridade) e nada do progresso se perde.</p>
+
+        @if (_loading)
+        {
+            <div class="empty"><div class="spinner"></div></div>
+        }
+        else if (_groups.Count == 0)
+        {
+            <div class="empty"><Icon Name="check" Size="32" /><p>Não há duplicados por rever.</p></div>
+        }
+        else
+        {
+            @foreach (DuplicateGroupDto group in _groups)
+            {
+                string key = Key(group);
+                int keep = _keep.GetValueOrDefault(key, group.Games.First(g => g.Suggested).Id);
+                <div class="card dup-group">
+                    <div class="dup-head"><span class="store-tag">@group.Platform</span></div>
+                    @foreach (DuplicateGameDto game in group.Games)
+                    {
+                        <label class="dup-row @(keep == game.Id ? "keep" : string.Empty)">
+                            <input type="radio" name="keep-@key" checked="@(keep == game.Id)" @onchange="() => _keep[key] = game.Id" />
+                            <span class="dup-title">@game.Title</span>
+                            <span class="dup-status st-@game.Status.CssClass()">@game.Status.Label()</span>
+                            @if (keep == game.Id)
+                            {
+                                <span class="dup-keep">manter</span>
+                            }
+                            else
+                            {
+                                <span class="dup-join" @onclick:stopPropagation="true"><input type="checkbox" checked="@(!_excluded.Contains(game.Id))" @onchange="() => Toggle(game.Id)" /> juntar</span>
+                            }
+                        </label>
+                    }
+                    <div class="dup-actions">
+                        <button class="btn btn-primary" @onclick="() => MergeAsync(group, keep)" disabled="@_busy">Juntar num só</button>
+                        <button class="btn" @onclick="() => IgnoreAsync(group)" disabled="@_busy">Não são o mesmo</button>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    private List<DuplicateGroupDto> _groups = [];
+    private readonly Dictionary<string, int> _keep = [];
+    private bool _loading = true;
+    private bool _busy;
+    private readonly HashSet<int> _excluded = [];
+
+    private void Toggle(int id)
+    {
+        if (!_excluded.Remove(id))
+        {
+            _excluded.Add(id);
+        }
+    }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    [Parameter]
+    public EventCallback OnChanged { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _groups = [.. await Api.GetDuplicatesAsync(CancellationToken.None)];
+        }
+        catch (ApiException exception)
+        {
+            Toasts.Error(exception.Message);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private static string Key(DuplicateGroupDto group) => string.Join('-', group.Games.Select(g => g.Id).Order());
+
+    private async Task MergeAsync(DuplicateGroupDto group, int keep)
+    {
+        await RunAsync(group, () => Api.MergeDuplicatesAsync(new MergeDuplicatesRequest(keep, [.. group.Games.Where(g => g.Id != keep).Select(g => g.Id)]), CancellationToken.None), reload: true);
+    }
+
+    private Task IgnoreAsync(DuplicateGroupDto group) =>
+        RunAsync(group, () => Api.IgnoreDuplicatesAsync([.. group.Games.Select(g => g.Id)], CancellationToken.None), reload: false);
+
+    private async Task RunAsync(DuplicateGroupDto group, Func<Task> action, bool reload)
+    {
+        _busy = true;
+        try
+        {
+            await action();
+            _groups.Remove(group);
+            if (reload)
+            {
+                await Library.ReloadAsync(CancellationToken.None);
+            }
+
+            await OnChanged.InvokeAsync();
+        }
+        catch (ApiException exception)
+        {
+            Toasts.Error(exception.Message);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

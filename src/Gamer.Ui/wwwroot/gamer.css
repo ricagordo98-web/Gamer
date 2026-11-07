@@ -977,3 +977,24 @@ h1 { font-size: 1.8rem; text-transform: var(--caps); letter-spacing: var(--caps-
 @media (max-width: 900px) { .header-actions.desktop-only { display: none; } }
 .plat-chip.on b, .fam-chip.on b { color: inherit; opacity: .75; }
 .plat-name, .hero-stat span { color: color-mix(in srgb, var(--c, var(--sc, var(--accent))) 80%, var(--text)); }
+.tier-hint { margin: 2px 0 0; font-size: .8rem; }
+.bundle-game.unlockable { cursor: pointer; }
+.bundle-game.unlockable:hover { opacity: 1; border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent); }
+.tier { min-width: 72px; min-height: 64px; border-radius: 12px; transition: background .2s; }
+.tier:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+
+/* ---------- Duplicates dialog ---------- */
+.dup-group { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+.dup-head { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
+.dup-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--border); cursor: pointer; }
+.dup-row.keep { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.dup-title { flex: 1; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
+.dup-status { font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); }
+.dup-status.st-completed { color: var(--st-completed); }
+.dup-status.st-playing { color: var(--st-playing); }
+.dup-status.st-backlog { color: var(--st-backlog); }
+.dup-keep { font-size: .72rem; font-weight: 800; color: var(--accent); }
+.dup-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.dup-banner { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 4px 0 12px; padding: 10px 14px; border-radius: 14px; border: 1px solid color-mix(in srgb, var(--st-playing) 40%, var(--border)); background: color-mix(in srgb, var(--st-playing) 10%, var(--surface)); }
+.dup-banner span { flex: 1 1 220px; }
+.dup-join { display: inline-flex; align-items: center; gap: 4px; font-size: .78rem; color: var(--muted); }

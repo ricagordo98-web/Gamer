@@ -1,6 +1,7 @@
 @page "/games"
 @implements IDisposable
 @inject GameLibrary Library
+@inject IGamerApi Api
 
 @{
     GameFilter filter = Library.Filter;
@@ -48,6 +49,15 @@ else if (overview)
     }
     else
     {
+        @if (_dupCount > 0)
+        {
+            <div class="dup-banner">
+                <Icon Name="scale" Size="18" />
+                <span>Encontrei <b>@_dupCount</b> @(_dupCount == 1 ? "grupo de possíveis duplicados" : "grupos de possíveis duplicados") para rever.</span>
+                <button class="btn" @onclick="() => _dupes = true">Rever</button>
+            </div>
+        }
+
         <section class="lib-hero">
             <div class="hero-total">
                 <span class="hero-kicker">A tua coleção</span>
@@ -179,9 +189,13 @@ else
 <button class="fab fab-secondary mobile-only" @onclick="() => _sources = true" aria-label="Fontes de jogos"><Icon Name="refresh" Size="22" /></button>
 <button class="fab mobile-only" @onclick="() => _adding = true" aria-label="Novo jogo"><Icon Name="plus" Size="26" /></button>
 
-@if (_sources)
+@if (_dupes)
 {
-    <SourcesDialog OnClose="() => _sources = false" />
+    <DuplicatesDialog OnClose="() => _dupes = false" OnChanged="CountDuplicatesAsync" />
+}
+else if (_sources)
+{
+    <SourcesDialog OnClose="() => { _sources = false; _ = CountDuplicatesAsync(); }" />
 }
 else if (_bulk)
 {
@@ -203,6 +217,8 @@ else if (_editing is not null)
     private bool _adding;
     private bool _bulk;
     private bool _sources;
+    private bool _dupes;
+    private int _dupCount;
     private bool _showAll;
 
     private IEnumerable<string> FamiliesInUse => Library.Games
@@ -215,6 +231,21 @@ else if (_editing is not null)
     {
         Library.Changed += OnLibraryChanged;
         await Library.EnsureLoadedAsync(CancellationToken.None);
+        await CountDuplicatesAsync();
+    }
+
+    private async Task CountDuplicatesAsync()
+    {
+        try
+        {
+            _dupCount = (await Api.GetDuplicatesAsync(CancellationToken.None)).Count;
+        }
+        catch (ApiException)
+        {
+            _dupCount = 0;
+        }
+
+        await InvokeAsync(StateHasChanged);
     }
 
     public void Dispose() => Library.Changed -= OnLibraryChanged;

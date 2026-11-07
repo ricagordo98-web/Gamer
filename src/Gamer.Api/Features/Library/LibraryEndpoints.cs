@@ -62,6 +62,20 @@ public static class LibraryEndpoints
             return Results.Ok(await sources.ListAsync(ct));
         });
 
+        group.MapGet("/duplicates", async (DuplicateService duplicates, CancellationToken ct) =>
+            Results.Ok(await duplicates.ListAsync(ct)));
+
+        group.MapPost("/duplicates/merge", async (MergeDuplicatesRequest request, DuplicateService duplicates, CancellationToken ct) =>
+            request.RemoveIds.Count == 0
+                ? Results.Problem("Escolhe os jogos a juntar.", statusCode: StatusCodes.Status400BadRequest)
+                : Results.Ok(new { removed = await duplicates.MergeAsync(request.KeepId, request.RemoveIds, ct) }));
+
+        group.MapPost("/duplicates/ignore", async (IgnoreDuplicatesRequest request, DuplicateService duplicates, CancellationToken ct) =>
+        {
+            await duplicates.IgnoreAsync(request.Ids, ct);
+            return Results.NoContent();
+        });
+
         return app;
     }
 }

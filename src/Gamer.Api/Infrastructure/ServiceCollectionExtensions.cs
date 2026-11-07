@@ -39,6 +39,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IEnumerable<ILibraryScanner>>(provider =>
             [.. LauncherScanner.CreateAll(), new EmulatorScanner(provider.GetRequiredService<IServiceScopeFactory>()), new LaunchBoxScanner(provider.GetRequiredService<IServiceScopeFactory>())]);
         services.AddScoped<LibrarySourceService>();
+        services.AddScoped<DuplicateService>();
         services.AddHttpClient<ISteamClient, SteamClient>(client =>
         {
             client.BaseAddress = new Uri("https://api.steampowered.com/");

@@ -15,7 +15,7 @@ public static class LibraryMaintenance
     public static async Task<int> TidyAsync(GamerDbContext db, CancellationToken cancellationToken)
     {
         int changes = await MergeEmulatorPlatformsAsync(db, cancellationToken);
-        changes += await RemoveDuplicatesAsync(db, cancellationToken);
+        changes += await DuplicateService.AutoMergeAsync(db, cancellationToken);
         return changes;
     }
 
@@ -57,36 +57,4 @@ public static class LibraryMaintenance
         return changes;
     }
 
-    private static async Task<int> RemoveDuplicatesAsync(GamerDbContext db, CancellationToken cancellationToken)
-    {
-        List<Game> games = await db.Games.ToListAsync(cancellationToken);
-        int removed = 0;
-
-        foreach (IGrouping<(int PlatformId, string Key), Game> group in games
-                     .GroupBy(g => (g.PlatformId, Key: TitleMatcher.Normalize(g.Title)))
-                     .Where(g => g.Key.Key.Length > 0 && g.Count() > 1))
-        {
-            List<Game> ordered = group.OrderByDescending(Weight).ThenBy(g => g.CreatedAt).ThenBy(g => g.Id).ToList();
-            Game keeper = ordered[0];
-            foreach (Game duplicate in ordered.Skip(1).Where(IsPlain))
-            {
-                db.Games.Remove(duplicate);
-                removed++;
-            }
-
-        }
-
-        if (removed > 0)
-        {
-            await db.SaveChangesAsync(cancellationToken);
-        }
-
-        return removed;
-    }
-
-    private static bool IsPlain(Game game) =>
-        game.Status == GameStatus.Backlog && !game.OnDeck && game.Rating is null && string.IsNullOrWhiteSpace(game.Notes);
-
-    private static int Weight(Game game) =>
-        (game.Status == GameStatus.Backlog ? 0 : 10) + (game.OnDeck ? 2 : 0) + (game.Rating is null ? 0 : 2) + (string.IsNullOrWhiteSpace(game.Notes) ? 0 : 2);
 }

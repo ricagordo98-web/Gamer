@@ -48,6 +48,7 @@ public class LibrarySourceService(
         if (string.Equals(id, SteamId, StringComparison.OrdinalIgnoreCase))
         {
             Gamer.Contracts.Steam.SteamSyncResultDto steam = await steamSync.SyncAsync(cancellationToken);
+            await DuplicateService.AutoMergeAsync(db, cancellationToken);
             return new LibrarySyncResultDto(steam.LibraryCount, steam.NewGames);
         }
 
@@ -86,7 +87,7 @@ public class LibrarySourceService(
 
     public static string TitleKey(string title, string platformName)
     {
-        string normalized = TitleMatcher.Normalize(title);
+        string normalized = GameTitleKey.Create(title);
         return $"{(normalized.Length > 0 ? normalized : title.ToLowerInvariant())}|{platformName}";
     }
 

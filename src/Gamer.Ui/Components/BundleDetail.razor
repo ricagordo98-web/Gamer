@@ -27,6 +27,10 @@
 
         <section class="tier-picker">
             <span class="filter-label">@(IsPick ? "Packs disponíveis" : "Quanto queres pagar?")</span>
+            @if (!IsPick && Bundle.Tiers.Count > 1)
+            {
+                <p class="muted tier-hint">Toca num nível de preço ou num jogo bloqueado para o desbloquear.</p>
+            }
             <div class="tiers" style="--progress: @ProgressPercent%; --n: @Bundle.Tiers.Count">
                 <span class="tiers-line"></span>
                 @for (int index = 0; index < Bundle.Tiers.Count; index++)
@@ -93,8 +97,8 @@
                 bool locked = !IsPick && item.Tier > _tier;
                 bool picked = IsPick && _picked.Contains(item.Title);
                 bool full = IsPick && !picked && _picked.Count >= MaxPicks;
-                <div @key="item.Title" class="bundle-game @(locked ? "locked" : string.Empty) @(picked ? "picked" : string.Empty) @(full ? "full" : string.Empty) @(IsPick ? "pickable" : string.Empty)"
-                     style="--d: @(Math.Min(index, 20) * 25)ms" @onclick="() => TogglePick(item)">
+                <div @key="item.Title" class="bundle-game @(locked ? "locked unlockable" : string.Empty) @(picked ? "picked" : string.Empty) @(full ? "full" : string.Empty) @(IsPick ? "pickable" : string.Empty)"
+                     style="--d: @(Math.Min(index, 20) * 25)ms" title="@(locked ? $"Desbloquear por {DealFormat.Money(Bundle.Tiers[item.Tier].Price, Bundle.Currency)}" : item.Title)" @onclick="() => TogglePick(item)">
                     <div class="bundle-game-cover">
                         @if (item.ImageUrl is { } cover)
                         {
@@ -189,6 +193,7 @@
     {
         if (!IsPick)
         {
+            _tier = Math.Max(_tier, item.Tier);
             return;
         }
 
