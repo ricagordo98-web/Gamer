@@ -15,6 +15,7 @@ public class GamerDbContext(DbContextOptions<GamerDbContext> options) : DbContex
     public DbSet<PriceSnapshot> PriceSnapshots => Set<PriceSnapshot>();
     public DbSet<Promotion> Promotions => Set<Promotion>();
     public DbSet<CartItem> CartItems => Set<CartItem>();
+    public DbSet<SteamAppInfo> SteamAppInfos => Set<SteamAppInfo>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -95,6 +96,19 @@ public class GamerDbContext(DbContextOptions<GamerDbContext> options) : DbContex
             promotion.HasOne(p => p.Store).WithMany().HasForeignKey(p => p.StoreId).OnDelete(DeleteBehavior.Cascade);
             promotion.HasIndex(p => new { p.StoreId, p.Url }).IsUnique();
             promotion.HasIndex(p => p.TitleKey);
+        });
+
+        modelBuilder.Entity<SteamAppInfo>(info =>
+        {
+            info.HasKey(i => i.AppId);
+            info.Property(i => i.AppId).ValueGeneratedNever();
+            info.Property(i => i.Currency).HasMaxLength(10);
+            info.Property(i => i.ReviewSummary).HasMaxLength(100);
+            info.Property(i => i.Genres).HasMaxLength(500);
+            info.Property(i => i.Tags).HasMaxLength(1000);
+            info.Property(i => i.ReleaseDate).HasMaxLength(50);
+            info.Property(i => i.Owners).HasMaxLength(100);
+            info.Property(i => i.LowestPriceShop).HasMaxLength(100);
         });
 
         modelBuilder.Entity<CartItem>(item =>

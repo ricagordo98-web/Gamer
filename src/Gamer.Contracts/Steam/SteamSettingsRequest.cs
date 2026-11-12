@@ -1,3 +1,3 @@
 namespace Gamer.Contracts.Steam;
 
-public record SteamSettingsRequest(string? ApiKey, string SteamId, int RefreshHours);
+public record SteamSettingsRequest(string? ApiKey, string SteamId, int RefreshHours, string? ItadApiKey = null);

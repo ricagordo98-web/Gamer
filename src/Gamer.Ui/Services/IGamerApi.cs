@@ -2,6 +2,7 @@
 using Gamer.Contracts.Deals;
 using Gamer.Contracts.Games;
 using Gamer.Contracts.Library;
+using Gamer.Contracts.Stats;
 using Gamer.Contracts.Steam;
 
 namespace Gamer.Ui.Services;
@@ -45,5 +46,10 @@ public interface IGamerApi
     Task<IReadOnlyList<CartItemDto>> GetCartAsync(CancellationToken cancellationToken);
     Task<CartItemDto> SaveCartItemAsync(CartItemRequest request, CancellationToken cancellationToken);
     Task DeleteCartItemAsync(int id, CancellationToken cancellationToken);
+    Task<StatsDto> GetStatsAsync(CancellationToken cancellationToken);
+    Task<SteamAppDetailDto> GetSteamAppAsync(long appId, CancellationToken cancellationToken);
+    Task<IReadOnlyList<PlayersNowDto>> GetPlayersNowAsync(IEnumerable<long> appIds, CancellationToken cancellationToken);
+    Task<EnrichmentStatusDto> StartEnrichmentAsync(CancellationToken cancellationToken);
+    Task<EnrichmentStatusDto> GetEnrichmentStatusAsync(CancellationToken cancellationToken);
     Task<bool> PingAsync(CancellationToken cancellationToken);
 }

@@ -1,0 +1,20 @@
+<div class="bars">
+    @foreach (BarItem item in Items)
+    {
+        <div class="bar-row wide-label">
+            <span class="bar-label" title="@item.Label">@item.Label</span>
+            <div class="bar-track"><div class="bar-fill" style="--fam:@Color;width:@(Max == 0 ? 0 : 100 * item.Value / Max)%"></div></div>
+            <span class="bar-value">@item.Text</span>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<BarItem> Items { get; set; } = [];
+
+    [Parameter]
+    public string Color { get; set; } = "var(--accent)";
+
+    private int Max => Items.Count == 0 ? 0 : Items.Max(i => i.Value);
+}

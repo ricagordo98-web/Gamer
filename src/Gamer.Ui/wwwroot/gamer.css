@@ -998,3 +998,26 @@ h1 { font-size: 1.8rem; text-transform: var(--caps); letter-spacing: var(--caps-
 .dup-banner { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 4px 0 12px; padding: 10px 14px; border-radius: 14px; border: 1px solid color-mix(in srgb, var(--st-playing) 40%, var(--border)); background: color-mix(in srgb, var(--st-playing) 10%, var(--surface)); }
 .dup-banner span { flex: 1 1 220px; }
 .dup-join { display: inline-flex; align-items: center; gap: 4px; font-size: .78rem; color: var(--muted); }
+
+/* Statistics */
+.tiles-5 { grid-template-columns: repeat(5, 1fr); }
+.stats-note { margin: 0 0 8px; }
+.stats-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 0 18px; align-items: start; }
+.bar-row.wide-label { grid-template-columns: minmax(80px, 150px) 1fr auto; }
+.bar-row.wide-label .bar-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar-row.wide-label .bar-fill { background: var(--fam, var(--accent)); }
+.stat-list { display: flex; flex-direction: column; padding: 6px; }
+.stat-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 9px 10px; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; border-radius: 10px; cursor: pointer; }
+.stat-row:hover:not(.static) { background: var(--surface-2); }
+.stat-row.static { cursor: default; }
+.stat-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stat-meta { color: var(--muted); font-size: .85rem; white-space: nowrap; }
+.stat-list > .muted { padding: 8px 10px; margin: 0; }
+.detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.detail-cell { background: var(--surface-2); border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
+.detail-cell span { color: var(--muted); font-size: .75rem; font-weight: 600; }
+.detail-cell strong { font-size: 1.1rem; }
+.detail-cell small { color: var(--muted); }
+.detail-cell.good { outline: 2px solid var(--price); }
+.detail-tags { margin-bottom: 14px; }
+@media (max-width: 900px) { .tiles-5 { grid-template-columns: repeat(2, 1fr); } }

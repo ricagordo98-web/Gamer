@@ -8,6 +8,7 @@ using Gamer.Api.Features.Deals.Bundles;
 using Gamer.Api.Features.Games;
 using Gamer.Api.Features.Import;
 using Gamer.Api.Features.Library;
+using Gamer.Api.Features.Stats;
 using Gamer.Api.Features.Steam;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Data.Sqlite;
@@ -45,6 +46,16 @@ public static class ServiceCollectionExtensions
             client.BaseAddress = new Uri("https://api.steampowered.com/");
             client.Timeout = TimeSpan.FromSeconds(30);
         });
+        services.AddHttpClient<ISteamStoreClient, SteamStoreClient>(client => client.Timeout = TimeSpan.FromSeconds(30));
+        services.AddHttpClient<IHistoricLowClient, HistoricLowClient>(client =>
+        {
+            client.BaseAddress = new Uri("https://api.isthereanydeal.com/");
+            client.Timeout = TimeSpan.FromSeconds(30);
+        });
+        services.AddScoped<SteamEnrichmentService>();
+        services.AddScoped<StatsService>();
+        services.AddSingleton<SteamEnrichmentRunner>();
+        services.AddSingleton<PlayerCountCache>();
         services.AddSingleton(_ => HttpPageFetcher.Create());
         services.AddSingleton<BrowserPageFetcher>();
         services.AddSingleton<IEnumerable<IStoreScraper>>(provider =>

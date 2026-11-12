@@ -1,0 +1,124 @@
+@inject IGamerApi Api
+
+<div class="overlay" @onclick="OnClose">
+    <div class="sheet sheet-wide" role="dialog" aria-modal="true" @onclick:stopPropagation="true">
+        <div class="sheet-header">
+            <h2>@(_detail?.Title ?? Title)</h2>
+            <button type="button" class="icon-btn" @onclick="OnClose" aria-label="Fechar"><Icon Name="x" /></button>
+        </div>
+
+        @if (_error is not null)
+        {
+            <p class="muted">@_error</p>
+        }
+        else if (_detail is null)
+        {
+            <div class="empty"><div class="spinner"></div></div>
+        }
+        else
+        {
+            <div class="detail-grid">
+                <div class="detail-cell"><span>Tempo de jogo</span><strong>@StatsFormat.Hours(_detail.Minutes)</strong></div>
+                <div class="detail-cell"><span>Últimas 2 semanas</span><strong>@StatsFormat.Hours(_detail.RecentMinutes)</strong></div>
+                <div class="detail-cell"><span>Última vez</span><strong>@StatsFormat.LastPlayed(_detail.LastPlayedAt, DateTimeOffset.UtcNow)</strong></div>
+                <div class="detail-cell"><span>Jogadores agora</span><strong>@(_players is null ? "—" : _players.Value.ToString("N0", System.Globalization.CultureInfo.GetCultureInfo("pt-PT")))</strong></div>
+            </div>
+
+            @if (!_detail.HasInfo)
+            {
+                <p class="muted">Ainda não tenho a ficha deste jogo. Usa "Atualizar fichas" na página de estatísticas.</p>
+            }
+            else
+            {
+                <div class="detail-grid">
+                    @if (_detail.ReviewPercent is not null)
+                    {
+                        <div class="detail-cell"><span>Reviews Steam</span><strong>@_detail.ReviewPercent%</strong><small>@_detail.ReviewSummary (@_detail.ReviewCount.ToString("N0"))</small></div>
+                    }
+                    @if (_detail.Metacritic is not null)
+                    {
+                        <div class="detail-cell"><span>Metacritic</span><strong>@_detail.Metacritic</strong></div>
+                    }
+                    @if (_detail.Price is not null)
+                    {
+                        <div class="detail-cell">
+                            <span>Preço na Steam</span>
+                            <strong>@DealFormat.Money(_detail.Price.Value, _detail.Currency)</strong>
+                            @if (_detail.DiscountPercent > 0)
+                            {
+                                <small>-@_detail.DiscountPercent% (normal @DealFormat.Money(_detail.NormalPrice ?? 0, _detail.Currency))</small>
+                            }
+                        </div>
+                    }
+                    @if (_detail.LowestPrice is not null)
+                    {
+                        <div class="detail-cell @(_detail.AtHistoricLow ? "good" : string.Empty)">
+                            <span>Mínimo histórico</span>
+                            <strong>@DealFormat.Money(_detail.LowestPrice.Value, _detail.Currency)</strong>
+                            <small>@(_detail.AtHistoricLow ? "O preço atual é o mais baixo de sempre" : _detail.LowestPriceShop)</small>
+                        </div>
+                    }
+                    @if (_detail.Owners is not null)
+                    {
+                        <div class="detail-cell"><span>Donos (estimativa)</span><strong>@_detail.Owners</strong></div>
+                    }
+                    @if (_detail.AverageMinutes is not null)
+                    {
+                        <div class="detail-cell"><span>Tempo médio dos jogadores</span><strong>@StatsFormat.Hours(_detail.AverageMinutes.Value)</strong></div>
+                    }
+                    @if (_detail.ReleaseDate is not null)
+                    {
+                        <div class="detail-cell"><span>Lançamento</span><strong>@_detail.ReleaseDate</strong></div>
+                    }
+                </div>
+
+                @if (_detail.Genres.Count > 0 || _detail.Tags.Count > 0)
+                {
+                    <div class="chips detail-tags">
+                        @foreach (string genre in _detail.Genres)
+                        {
+                            <span class="chip on">@genre</span>
+                        }
+                        @foreach (string tag in _detail.Tags)
+                        {
+                            <span class="chip">@tag</span>
+                        }
+                    </div>
+                }
+            }
+
+            <div class="sheet-actions">
+                <a class="btn" href="https://store.steampowered.com/app/@_detail.AppId" target="_blank" rel="noopener"><Icon Name="external" Size="18" /> Abrir na Steam</a>
+                <a class="btn" href="https://steamdb.info/app/@_detail.AppId/" target="_blank" rel="noopener"><Icon Name="external" Size="18" /> SteamDB</a>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public long AppId { get; set; }
+
+    [Parameter]
+    public string Title { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public EventCallback OnClose { get; set; }
+
+    private SteamAppDetailDto? _detail;
+    private int? _players;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _detail = await Api.GetSteamAppAsync(AppId, CancellationToken.None);
+            _players = (await Api.GetPlayersNowAsync([AppId], CancellationToken.None)).FirstOrDefault()?.Players;
+        }
+        catch (ApiException exception)
+        {
+            _error = exception.Message;
+        }
+    }
+}

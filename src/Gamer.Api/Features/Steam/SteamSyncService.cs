@@ -24,7 +24,7 @@ public class SteamSyncService(GamerDbContext db, ISteamClient steam, ISteamSetti
 
         db.SteamLibrary.AddRange(library
             .DistinctBy(g => g.AppId)
-            .Select(g => new SteamLibraryItem { AppId = g.AppId, Title = g.Name, PlaytimeMinutes = g.PlaytimeMinutes }));
+            .Select(g => new SteamLibraryItem { AppId = g.AppId, Title = g.Name, PlaytimeMinutes = g.PlaytimeMinutes, RecentMinutes = g.RecentMinutes, LastPlayedAt = g.LastPlayedAt }));
         db.Wishlist.AddRange(wishlist
             .DistinctBy(w => w.AppId)
             .Select(w => new WishlistItem

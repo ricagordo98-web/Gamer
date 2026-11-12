@@ -4,6 +4,7 @@ using Gamer.Contracts.Auth;
 using Gamer.Contracts.Deals;
 using Gamer.Contracts.Games;
 using Gamer.Contracts.Library;
+using Gamer.Contracts.Stats;
 using Gamer.Contracts.Steam;
 
 namespace Gamer.Ui.Services;
@@ -179,6 +180,21 @@ public class GamerApiClient(HttpClient http) : IGamerApi
 
         return "?" + string.Join('&', parts);
     }
+
+    public Task<StatsDto> GetStatsAsync(CancellationToken cancellationToken) =>
+        SendAsync<StatsDto>(() => http.GetAsync("api/stats", cancellationToken), cancellationToken);
+
+    public Task<SteamAppDetailDto> GetSteamAppAsync(long appId, CancellationToken cancellationToken) =>
+        SendAsync<SteamAppDetailDto>(() => http.GetAsync($"api/stats/apps/{appId}", cancellationToken), cancellationToken);
+
+    public async Task<IReadOnlyList<PlayersNowDto>> GetPlayersNowAsync(IEnumerable<long> appIds, CancellationToken cancellationToken) =>
+        await SendAsync<List<PlayersNowDto>>(() => http.GetAsync($"api/stats/players?ids={string.Join(',', appIds)}", cancellationToken), cancellationToken);
+
+    public Task<EnrichmentStatusDto> StartEnrichmentAsync(CancellationToken cancellationToken) =>
+        SendAsync<EnrichmentStatusDto>(() => http.PostAsync("api/stats/enrich", null, cancellationToken), cancellationToken);
+
+    public Task<EnrichmentStatusDto> GetEnrichmentStatusAsync(CancellationToken cancellationToken) =>
+        SendAsync<EnrichmentStatusDto>(() => http.GetAsync("api/stats/enrich", cancellationToken), cancellationToken);
 
     public async Task<bool> PingAsync(CancellationToken cancellationToken)
     {

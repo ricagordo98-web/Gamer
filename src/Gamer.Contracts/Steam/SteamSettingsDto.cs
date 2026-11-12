@@ -1,3 +1,3 @@
 namespace Gamer.Contracts.Steam;
 
-public record SteamSettingsDto(bool ApiKeyConfigured, string SteamId, int RefreshHours);
+public record SteamSettingsDto(bool ApiKeyConfigured, string SteamId, int RefreshHours, bool ItadConfigured = false);

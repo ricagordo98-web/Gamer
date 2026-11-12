@@ -62,6 +62,7 @@
     <p class="muted">Precisas de uma API key (steamcommunity.com/dev/apikey) e do teu SteamID64 (17 dígitos). O perfil e os detalhes dos jogos têm de estar públicos.</p>
     <input class="input" type="password" placeholder="@(_steam?.ApiKeyConfigured == true ? "API key guardada (deixa vazio para manter)" : "API key")" @bind="_apiKey" autocomplete="off" />
     <input class="input" placeholder="SteamID64" @bind="_steamId" inputmode="numeric" />
+    <input class="input" type="password" placeholder="@(_steam?.ItadConfigured == true ? "API key IsThereAnyDeal guardada (deixa vazio para manter)" : "API key IsThereAnyDeal (opcional, para o preço mais baixo de sempre)")" @bind="_itadKey" autocomplete="off" />
     <label class="muted">Atualizar preços de X em X horas (0 = desligado)
         <input class="input" type="number" min="0" max="168" @bind="_refreshHours" />
     </label>
@@ -98,6 +99,7 @@
 
     private SteamSettingsDto? _steam;
     private string _apiKey = string.Empty;
+    private string _itadKey = string.Empty;
     private string _steamId = string.Empty;
     private int _refreshHours = 12;
     private bool _syncing;
@@ -130,8 +132,9 @@
     {
         try
         {
-            _steam = await Api.SaveSteamSettingsAsync(new SteamSettingsRequest(_apiKey, _steamId, _refreshHours), CancellationToken.None);
+            _steam = await Api.SaveSteamSettingsAsync(new SteamSettingsRequest(_apiKey, _steamId, _refreshHours, _itadKey), CancellationToken.None);
             _apiKey = string.Empty;
+            _itadKey = string.Empty;
             Toasts.Success("Definições Steam guardadas.");
         }
         catch (ApiException exception)

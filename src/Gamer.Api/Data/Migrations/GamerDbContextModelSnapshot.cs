@@ -408,12 +408,86 @@ namespace Gamer.Api.Data.Migrations
                     b.ToTable("Promotions");
                 });
 
+            modelBuilder.Entity("Gamer.Api.Domain.SteamAppInfo", b =>
+                {
+                    b.Property<long>("AppId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("AverageMinutes")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("DiscountPercent")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Genres")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal?>("LowestPrice")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LowestPriceShop")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("Metacritic")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal?>("NormalPrice")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Owners")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal?>("Price")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReleaseDate")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ReviewCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("ReviewPercent")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ReviewSummary")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Tags")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("AppId");
+
+                    b.ToTable("SteamAppInfos");
+                });
+
             modelBuilder.Entity("Gamer.Api.Domain.SteamLibraryItem", b =>
                 {
                     b.Property<long>("AppId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<DateTimeOffset?>("LastPlayedAt")
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("PlaytimeMinutes")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("RecentMinutes")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("Title")

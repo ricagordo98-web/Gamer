@@ -13,6 +13,7 @@ public interface ISteamSettingsService
     Task SaveAsync(SteamSettingsRequest request, CancellationToken cancellationToken);
     Task<SteamCredentials?> GetCredentialsAsync(CancellationToken cancellationToken);
     Task<int> GetRefreshHoursAsync(CancellationToken cancellationToken);
+    Task<string?> GetItadKeyAsync(CancellationToken cancellationToken);
 }
 
 public class SteamSettingsService(GamerDbContext db) : ISteamSettingsService
@@ -22,6 +23,7 @@ public class SteamSettingsService(GamerDbContext db) : ISteamSettingsService
     private const string ApiKeySetting = "steam.apiKey";
     private const string SteamIdSetting = "steam.steamId";
     private const string RefreshHoursSetting = "steam.refreshHours";
+    private const string ItadKeySetting = "itad.apiKey";
 
     public async Task<SteamSettingsDto> GetAsync(CancellationToken cancellationToken)
     {
@@ -29,7 +31,8 @@ public class SteamSettingsService(GamerDbContext db) : ISteamSettingsService
         return new SteamSettingsDto(
             values.ContainsKey(ApiKeySetting),
             values.GetValueOrDefault(SteamIdSetting, string.Empty),
-            ParseHours(values));
+            ParseHours(values),
+            values.ContainsKey(ItadKeySetting));
     }
 
     public async Task SaveAsync(SteamSettingsRequest request, CancellationToken cancellationToken)
@@ -39,6 +42,11 @@ public class SteamSettingsService(GamerDbContext db) : ISteamSettingsService
         if (!string.IsNullOrWhiteSpace(request.ApiKey))
         {
             Upsert(existing, ApiKeySetting, request.ApiKey.Trim());
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.ItadApiKey))
+        {
+            Upsert(existing, ItadKeySetting, request.ItadApiKey.Trim());
         }
 
         Upsert(existing, SteamIdSetting, request.SteamId.Trim());
@@ -58,6 +66,9 @@ public class SteamSettingsService(GamerDbContext db) : ISteamSettingsService
 
     public async Task<int> GetRefreshHoursAsync(CancellationToken cancellationToken) =>
         ParseHours(await LoadAsync(cancellationToken));
+
+    public async Task<string?> GetItadKeyAsync(CancellationToken cancellationToken) =>
+        (await LoadAsync(cancellationToken)).GetValueOrDefault(ItadKeySetting);
 
     private async Task<Dictionary<string, string>> LoadAsync(CancellationToken cancellationToken) =>
         await db.AppSettings.AsNoTracking()

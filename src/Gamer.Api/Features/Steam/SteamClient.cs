@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace Gamer.Api.Features.Steam;
 
-public record SteamOwnedGame(long AppId, string Name, int PlaytimeMinutes);
+public record SteamOwnedGame(long AppId, string Name, int PlaytimeMinutes, int RecentMinutes = 0, DateTimeOffset? LastPlayedAt = null);
 
 public record SteamWishlistEntry(long AppId, DateTimeOffset? AddedAt);
 
@@ -37,7 +37,9 @@ public class SteamClient(HttpClient http) : ISteamClient
             .Select(g => new SteamOwnedGame(
                 g.GetProperty("appid").GetInt64(),
                 g.GetProperty("name").GetString() ?? string.Empty,
-                g.TryGetProperty("playtime_forever", out JsonElement playtime) ? playtime.GetInt32() : 0))
+                g.TryGetProperty("playtime_forever", out JsonElement playtime) ? playtime.GetInt32() : 0,
+                g.TryGetProperty("playtime_2weeks", out JsonElement recent) ? recent.GetInt32() : 0,
+                g.TryGetProperty("rtime_last_played", out JsonElement last) && last.GetInt64() > 0 ? DateTimeOffset.FromUnixTimeSeconds(last.GetInt64()) : null))
             .ToList();
     }
 

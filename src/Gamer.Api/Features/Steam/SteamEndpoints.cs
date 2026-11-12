@@ -1,4 +1,5 @@
 using Gamer.Api.Data;
+using Gamer.Api.Features.Stats;
 using Gamer.Api.Infrastructure;
 using Gamer.Contracts.Steam;
 using Microsoft.EntityFrameworkCore;
@@ -20,11 +21,13 @@ public static class SteamEndpoints
             return Results.Ok(await settings.GetAsync(ct));
         }).AddEndpointFilter<ValidationFilter<SteamSettingsRequest>>();
 
-        group.MapPost("/sync", async (SteamSyncService sync, CancellationToken ct) =>
+        group.MapPost("/sync", async (SteamSyncService sync, SteamEnrichmentRunner enrichment, CancellationToken ct) =>
         {
             try
             {
-                return Results.Ok(await sync.SyncAsync(ct));
+                SteamSyncResultDto result = await sync.SyncAsync(ct);
+                enrichment.TryStart();
+                return Results.Ok(result);
             }
             catch (SteamNotConfiguredException exception)
             {
