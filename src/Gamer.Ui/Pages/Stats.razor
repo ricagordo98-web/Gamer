@@ -8,10 +8,18 @@
     <h1>Estatísticas</h1>
     <div class="header-actions-inline">
         <button class="btn" @onclick="EnrichAsync" disabled="@(_stats is null || _stats.Enrichment.Running)" title="Vai buscar avaliações, géneros, preços e tags de cada jogo Steam">
-            <Icon Name="refresh" Size="18" /> @(_stats?.Enrichment.Running == true ? $"A atualizar fichas ({_stats.Enrichment.Done}/{_stats.Enrichment.Total})" : "Atualizar fichas")
+            <Icon Name="refresh" Size="18" /> @(_stats?.Enrichment.Running == true ? "A atualizar fichas…" : "Atualizar fichas")
         </button>
     </div>
 </header>
+
+@if (_stats?.Enrichment.Running == true)
+{
+    <div class="card enrich-progress">
+        <span>A ir buscar as fichas dos jogos: @_stats.Enrichment.Done de @_stats.Enrichment.Total</span>
+        <div class="bar-track"><div class="bar-fill" style="--fam:var(--accent);width:@(_stats.Enrichment.Total == 0 ? 0 : 100 * _stats.Enrichment.Done / _stats.Enrichment.Total)%"></div></div>
+    </div>
+}
 
 @if (_loading)
 {
@@ -30,117 +38,28 @@ else if (_stats is null || _stats.SteamGames == 0)
 }
 else
 {
-    DashboardStats library = DashboardStats.From(Library.Games.ToList());
-
-    <section class="tiles tiles-5">
-        <div class="tile"><strong>@_stats.SteamGames</strong><span>Jogos Steam</span></div>
-        <div class="tile st-playing"><strong>@StatsFormat.Hours(_stats.TotalMinutes)</strong><span>Horas jogadas</span></div>
-        <div class="tile st-completed"><strong>@(_stats.PricedGames == 0 ? "—" : DealFormat.Money(_stats.ValueCurrent, _stats.Currency))</strong><span>Valor da conta (agora)</span></div>
-        <div class="tile st-backlog"><strong>@_stats.NeverPlayed</strong><span>Nunca abertos</span></div>
-        <div class="tile deck"><strong>@(_stats.PricedGames == 0 ? "—" : StatsFormat.PerHour(_stats.ValueCurrent, _stats.TotalMinutes, _stats.Currency))</strong><span>Custo por hora</span></div>
-    </section>
-
-    @if (_stats.PricedGames > 0)
-    {
-        <p class="muted stats-note">
-            Ao preço normal a tua biblioteca vale @DealFormat.Money(_stats.ValueNormal, _stats.Currency) e ao preço de hoje @DealFormat.Money(_stats.ValueCurrent, _stats.Currency),
-            contando @_stats.PricedGames de @_stats.SteamGames jogos com preço. Jogaste @StatsFormat.Hours(_stats.RecentMinutes) nas últimas duas semanas.
-        </p>
-    }
-    else
-    {
-        <p class="muted stats-note">Valor, géneros e avaliações aparecem depois de atualizares as fichas (@_stats.InfoGames de @_stats.SteamGames feitas).</p>
-    }
-
-    <div class="stats-columns">
-        <section>
-            <h3 class="section-title">Por estado</h3>
-            <div class="card">
-                <BarList Items="StatusBars(library)" />
-            </div>
-        </section>
-        <section>
-            <h3 class="section-title">Por plataforma</h3>
-            <div class="card">
-                <BarList Items="library.ByPlatform.Select(p => new BarItem(p.Name, p.Count, p.Count.ToString())).ToList()" Color="var(--accent-2)" />
-            </div>
-        </section>
-        @if (_stats.Genres.Count > 0)
+    <div class="view-switch stats-tabs">
+        @foreach ((string key, string label, string icon) in Tabs)
         {
-            <section>
-                <h3 class="section-title">Géneros mais comuns</h3>
-                <div class="card">
-                    <BarList Items="GenreBars(_stats)" Color="var(--price)" />
-                </div>
-            </section>
+            <button class="@(_tab == key ? "on" : string.Empty)" @onclick="() => _tab = key"><Icon Name="@icon" Size="18" /> @label</button>
         }
     </div>
 
-    <div class="stats-columns">
-        <section>
-            <h3 class="section-title">Mais jogados</h3>
-            <div class="card stat-list">
-                @foreach (StatsGameDto game in _stats.TopPlayed.Where(g => g.Minutes > 0))
-                {
-                    <button class="stat-row" @onclick="() => Open(game)">
-                        <span class="stat-title">@game.Title</span>
-                        <span class="stat-meta">@StatsFormat.Hours(game.Minutes)</span>
-                    </button>
-                }
-            </div>
-        </section>
-        <section>
-            <h3 class="section-title">Jogados recentemente</h3>
-            <div class="card stat-list">
-                @if (_stats.Recent.Count == 0)
-                {
-                    <p class="muted">Nada nas últimas duas semanas.</p>
-                }
-                @foreach (StatsGameDto game in _stats.Recent)
-                {
-                    <button class="stat-row" @onclick="() => Open(game)">
-                        <span class="stat-title">@game.Title</span>
-                        <span class="stat-meta">@StatsFormat.Hours(game.RecentMinutes) · @StatsFormat.LastPlayed(game.LastPlayedAt, DateTimeOffset.UtcNow)@PlayersText(game.AppId)</span>
-                    </button>
-                }
-            </div>
-        </section>
-        <section>
-            <h3 class="section-title">Comprados e nunca abertos</h3>
-            <div class="card stat-list">
-                @if (_stats.NeverPlayedTop.Count == 0)
-                {
-                    <p class="muted">Já abriste todos. Respeito.</p>
-                }
-                @foreach (StatsGameDto game in _stats.NeverPlayedTop)
-                {
-                    <button class="stat-row" @onclick="() => Open(game)">
-                        <span class="stat-title">@game.Title</span>
-                        <span class="stat-meta">@(game.NormalPrice is > 0 ? DealFormat.Money(game.NormalPrice.Value, _stats.Currency) : string.Empty)</span>
-                    </button>
-                }
-            </div>
-        </section>
-        <section>
-            <h3 class="section-title">As tuas melhores notas</h3>
-            <div class="card stat-list">
-                @{
-                    List<GameDto> rated = Library.Games.Where(g => g.Rating is not null).OrderByDescending(g => g.Rating).ThenBy(g => g.Title).Take(10).ToList();
-                }
-                @if (rated.Count == 0)
-                {
-                    <p class="muted">Ainda não deste notas a nenhum jogo.</p>
-                }
-                @foreach (GameDto game in rated)
-                {
-                    <div class="stat-row static">
-                        <span class="stat-title">@game.Title</span>
-                        <span class="stat-meta">@game.Rating/10 · @game.PlatformName</span>
-                    </div>
-                }
-            </div>
-        </section>
-    </div>
+    @switch (_tab)
+    {
+        case "library":
+            <StatsLibrary />
+            break;
+        case "steam":
+            <StatsSteam Stats="_stats" OnOpen="Open" />
+            break;
+        case "games":
+            <StatsGamesTable Currency="@_stats.Currency" OnOpen="Open" />
+            break;
+        default:
+            <StatsOverview Stats="_stats" Players="_players" OnOpen="Open" />
+            break;
+    }
 }
 
 @if (_open is not null)
@@ -151,10 +70,19 @@ else
 @code {
     private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(4);
 
+    private static readonly (string Key, string Label, string Icon)[] Tabs =
+    [
+        ("overview", "Resumo", "dashboard"),
+        ("library", "Biblioteca", "library"),
+        ("steam", "Steam", "store"),
+        ("games", "Todos os jogos", "games"),
+    ];
+
     private StatsDto? _stats;
     private string? _error;
     private bool _loading = true;
     private bool _disposed;
+    private string _tab = "overview";
     private StatsGameDto? _open;
     private Dictionary<long, int?> _players = [];
 
@@ -166,24 +94,12 @@ else
         await LoadAsync();
     }
 
-    private static IReadOnlyList<BarItem> StatusBars(DashboardStats library) =>
-    [
-        new("Backlog", library.Backlog, library.Backlog.ToString()),
-        new("A jogar", library.Playing, library.Playing.ToString()),
-        new("Terminados", library.Completed, library.Completed.ToString()),
-    ];
-
-    private static IReadOnlyList<BarItem> GenreBars(StatsDto stats) =>
-        stats.Genres.Select(g => new BarItem(g.Name, g.Count, $"{g.Count} · {StatsFormat.Hours(g.Minutes)}")).ToList();
-
     private void Open(StatsGameDto game) => _open = game;
-
-    private string PlayersText(long appId) =>
-        _players.TryGetValue(appId, out int? players) && players is not null ? $" · {StatsFormat.Players(players)}" : string.Empty;
 
     private async Task LoadAsync()
     {
         _error = null;
+        _loading = true;
         try
         {
             _stats = await Api.GetStatsAsync(CancellationToken.None);

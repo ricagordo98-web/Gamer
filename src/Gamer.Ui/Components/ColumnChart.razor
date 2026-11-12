@@ -1,0 +1,22 @@
+<div class="columns" style="--cols:@Items.Count">
+    @foreach (BarItem item in Items)
+    {
+        <div class="column" title="@item.Label: @item.Text">
+            <span class="column-value">@item.Text</span>
+            <div class="column-track"><div class="column-fill" style="--fam:@Color;height:@Height(item)%"></div></div>
+            <span class="column-label">@item.Label</span>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<BarItem> Items { get; set; } = [];
+
+    [Parameter]
+    public string Color { get; set; } = "var(--accent)";
+
+    private int Max => Items.Count == 0 ? 0 : Items.Max(i => i.Value);
+
+    private int Height(BarItem item) => Max == 0 ? 0 : Math.Max(item.Value == 0 ? 0 : 4, 100 * item.Value / Max);
+}

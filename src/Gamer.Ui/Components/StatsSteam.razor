@@ -1,0 +1,86 @@
+@{
+    decimal saved = Stats.ValueNormal - Stats.ValueCurrent;
+    int savedPercent = Stats.ValueNormal <= 0 ? 0 : (int)Math.Round(100m * saved / Stats.ValueNormal);
+}
+
+@if (Stats.PricedGames == 0)
+{
+    <div class="card stats-banner">
+        <p>Ainda não tenho preços nem géneros: faltam as fichas dos jogos (@Stats.InfoGames de @Stats.SteamGames feitas). Carrega em "Atualizar fichas" no topo.</p>
+    </div>
+}
+else
+{
+    <section class="card value-card">
+        <div class="value-block">
+            <span>Preço normal da biblioteca</span>
+            <strong>@DealFormat.Money(Stats.ValueNormal, Stats.Currency)</strong>
+        </div>
+        <div class="value-block">
+            <span>A preços de hoje</span>
+            <strong>@DealFormat.Money(Stats.ValueCurrent, Stats.Currency)</strong>
+            @if (savedPercent > 0)
+            {
+                <small>@savedPercent% abaixo do normal</small>
+            }
+        </div>
+        <div class="value-block">
+            <span>Custo por hora jogada</span>
+            <strong>@StatsFormat.PerHour(Stats.ValueCurrent, Stats.TotalMinutes, Stats.Currency)</strong>
+            <small>@StatsFormat.Hours(Stats.TotalMinutes) no total</small>
+        </div>
+        <div class="value-block">
+            <span>Parado em jogos por abrir</span>
+            <strong>@DealFormat.Money(Stats.NeverPlayedValue, Stats.Currency)</strong>
+            <small>@Stats.NeverPlayed jogos</small>
+        </div>
+    </section>
+    @if (Stats.PricedGames < Stats.SteamGames)
+    {
+        <p class="muted stats-note">Contas feitas com @Stats.PricedGames de @Stats.SteamGames jogos: os restantes ainda não têm preço (fichas por atualizar, jogos removidos da loja ou sem preço).</p>
+    }
+}
+
+<div class="stats-columns">
+    @if (Stats.Genres.Count > 0)
+    {
+        <section>
+            <h3 class="section-title">Géneros</h3>
+            <div class="card"><BarList Items="CountBars(Stats.Genres)" Color="var(--accent)" /></div>
+        </section>
+    }
+    @if (Stats.Tags.Count > 0)
+    {
+        <section>
+            <h3 class="section-title">Tags mais comuns</h3>
+            <div class="card"><BarList Items="CountBars(Stats.Tags)" Color="var(--accent-3)" /></div>
+        </section>
+    }
+</div>
+
+<div class="stats-columns">
+    <StatGameList Title="Mais jogados" Games="Stats.TopPlayed.Where(g => g.Minutes > 0).ToList()" Meta="g => StatsFormat.Hours(g.Minutes)" OnOpen="OnOpen" />
+    <StatGameList Title="Melhor avaliados pela comunidade" Games="Stats.BestRated" Meta="RatedMeta" Empty="Aparece depois de atualizares as fichas." OnOpen="OnOpen" />
+    <StatGameList Title="Melhor custo por hora" Games="Stats.BestValue" Meta="ValueMeta" Empty="Precisa de preços e pelo menos 1 h de jogo." OnOpen="OnOpen" />
+    <StatGameList Title="Comprados e nunca abertos" Games="Stats.NeverPlayedTop" Meta="NeverMeta" Empty="Já abriste todos. Respeito." OnOpen="OnOpen" />
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public StatsDto Stats { get; set; } = default!;
+
+    [Parameter]
+    public EventCallback<StatsGameDto> OnOpen { get; set; }
+
+    private static IReadOnlyList<BarItem> CountBars(IReadOnlyList<StatsCountDto> counts) =>
+        counts.Select(c => new BarItem(c.Name, c.Count, $"{c.Count} · {StatsFormat.Hours(c.Minutes)}")).ToList();
+
+    private static string RatedMeta(StatsGameDto game) =>
+        $"{game.ReviewPercent}%" + (string.IsNullOrEmpty(game.ReviewSummary) ? string.Empty : $" · {game.ReviewSummary}");
+
+    private string ValueMeta(StatsGameDto game) =>
+        $"{StatsFormat.PerHour(game.Price ?? 0, game.Minutes, Stats.Currency)}/h · {StatsFormat.Hours(game.Minutes)}";
+
+    private string NeverMeta(StatsGameDto game) =>
+        game.NormalPrice is > 0 ? DealFormat.Money(game.NormalPrice.Value, Stats.Currency) : string.Empty;
+}

@@ -1019,7 +1019,7 @@ h1 { font-size: 1.8rem; text-transform: var(--caps); letter-spacing: var(--caps-
 .detail-cell strong { font-size: 1.1rem; }
 .detail-cell small { color: var(--muted); }
 .detail-cell.good { outline: 2px solid var(--price); }
-.detail-tags { margin-bottom: 14px; }
+.detail-tags { margin-bottom: 14px; flex-wrap: wrap; overflow: visible; }
 @media (max-width: 900px) { .tiles-5 { grid-template-columns: repeat(2, 1fr); } }
 
 /* Friends */
@@ -1037,3 +1037,49 @@ h1 { font-size: 1.8rem; text-transform: var(--caps); letter-spacing: var(--caps-
 .friend-name { font-weight: 600; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .friend-offline summary { cursor: pointer; list-style: none; }
 .friend-list > .muted { padding: 8px 10px; margin: 0; }
+
+/* Statistics v2 */
+.stats-tabs { margin: 12px 0 18px; flex-wrap: wrap; }
+.stats-hero { margin-bottom: 14px; }
+.insights { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.insight { background: color-mix(in srgb, var(--surface-2) 80%, transparent); border: 1px solid var(--border); border-radius: 999px; padding: 6px 12px; font-size: .85rem; }
+.insight b { color: var(--accent-2); }
+.chart-note { margin: 10px 0 0; font-size: .8rem; }
+.enrich-progress { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; font-size: .9rem; }
+.stats-banner p { margin: 0; }
+
+.donut-wrap { display: flex; align-items: center; gap: 22px; flex-wrap: wrap; justify-content: center; }
+.donut { --size: 150px; width: var(--size); height: var(--size); border-radius: 50%; display: grid; place-items: center; flex: none; }
+.donut-hole { width: calc(var(--size) - 44px); height: calc(var(--size) - 44px); border-radius: 50%; background: var(--surface); display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.donut-hole strong { font-size: 1.4rem; }
+.donut-hole span { font-size: .7rem; color: var(--muted); }
+.donut-legend { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; min-width: 150px; flex: 1; }
+.donut-legend li { display: flex; align-items: center; gap: 8px; font-size: .9rem; }
+.donut-legend i { width: 12px; height: 12px; border-radius: 4px; flex: none; }
+.donut-legend span { flex: 1; }
+.donut-legend small { color: var(--muted); font-weight: 600; }
+
+.columns { display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); gap: 8px; align-items: end; height: 190px; }
+.column { display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; min-width: 0; }
+.column-track { flex: 1; width: 100%; display: flex; align-items: flex-end; }
+.column-fill { width: 100%; border-radius: 8px 8px 3px 3px; background: linear-gradient(180deg, var(--fam), color-mix(in srgb, var(--fam) 55%, transparent)); transition: height .3s ease; }
+.column-value { font-size: .78rem; font-weight: 700; color: var(--muted); }
+.column-label { font-size: .68rem; color: var(--muted); text-align: center; line-height: 1.15; min-height: 2.3em; overflow: hidden; }
+
+.value-card { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 18px; margin-bottom: 8px; }
+.value-block { display: flex; flex-direction: column; gap: 2px; }
+.value-block span { color: var(--muted); font-size: .78rem; font-weight: 600; }
+.value-block strong { font-size: 1.6rem; }
+.value-block small { color: var(--muted); }
+
+.table-card { padding: 0; overflow-x: auto; }
+.stats-table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+.stats-table th { position: sticky; top: 0; background: var(--surface); text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.stats-table th button { all: unset; cursor: pointer; font-weight: 700; color: var(--muted); font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; }
+.stats-table th button:hover { color: var(--text); }
+.stats-table td { padding: 8px 10px; border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent); white-space: nowrap; }
+.stats-table tbody tr { cursor: pointer; }
+.stats-table tbody tr:hover { background: var(--surface-2); }
+.stats-table .num { text-align: right; }
+.stats-table .title-cell { white-space: normal; min-width: 200px; font-weight: 600; }
+.stats-table .title-cell small { display: block; color: var(--muted); font-weight: 400; font-size: .75rem; }

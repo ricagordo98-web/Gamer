@@ -1,0 +1,168 @@
+@inject IGamerApi Api
+
+@if (_error is not null)
+{
+    <div class="empty">
+        <p>@_error</p>
+        <button class="btn btn-primary" @onclick="LoadAsync">Tentar de novo</button>
+    </div>
+}
+else if (_rows is null)
+{
+    <div class="empty"><div class="spinner"></div></div>
+}
+else
+{
+    <label class="search promo-search">
+        <Icon Name="search" Size="18" />
+        <input type="search" placeholder="Filtrar por nome ou género…" @bind="_search" @bind:event="oninput" />
+    </label>
+
+    <div class="chips toggles">
+        @foreach ((string key, string label) in Filters)
+        {
+            <button class="chip @(_filter == key ? "on" : string.Empty)" @onclick="() => SetFilter(key)">@label</button>
+        }
+    </div>
+
+    List<StatsRowDto> rows = Visible();
+    <p class="muted stats-note">@rows.Count de @_rows.Count jogos. Clica num cabeçalho para ordenar e num jogo para ver a ficha.</p>
+
+    <div class="card table-card">
+        <table class="stats-table">
+            <thead>
+                <tr>
+                    <th><button @onclick='() => SortBy("title")'>Jogo @Arrow("title")</button></th>
+                    <th class="num"><button @onclick='() => SortBy("hours")'>Horas @Arrow("hours")</button></th>
+                    <th class="num"><button @onclick='() => SortBy("recent")'>2 sem. @Arrow("recent")</button></th>
+                    <th class="num"><button @onclick='() => SortBy("last")'>Última vez @Arrow("last")</button></th>
+                    <th class="num"><button @onclick='() => SortBy("price")'>Preço @Arrow("price")</button></th>
+                    <th class="num"><button @onclick='() => SortBy("perhour")'>Custo/h @Arrow("perhour")</button></th>
+                    <th class="num"><button @onclick='() => SortBy("reviews")'>Reviews @Arrow("reviews")</button></th>
+                    <th class="num"><button @onclick='() => SortBy("meta")'>Meta @Arrow("meta")</button></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (StatsRowDto row in rows.Take(_shown))
+                {
+                    <tr @onclick="() => OnOpen.InvokeAsync(ToGame(row))">
+                        <td class="title-cell">@row.Title<small>@row.Genres</small></td>
+                        <td class="num">@(row.Minutes == 0 ? "—" : StatsFormat.Hours(row.Minutes))</td>
+                        <td class="num">@(row.RecentMinutes == 0 ? string.Empty : StatsFormat.Hours(row.RecentMinutes))</td>
+                        <td class="num">@(row.LastPlayedAt is null ? string.Empty : DealFormat.Ago(row.LastPlayedAt.Value, DateTimeOffset.UtcNow))</td>
+                        <td class="num">@PriceText(row)</td>
+                        <td class="num">@PerHourText(row)</td>
+                        <td class="num">@(row.ReviewPercent is null ? string.Empty : row.ReviewPercent + "%")</td>
+                        <td class="num">@row.Metacritic</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @if (rows.Count > _shown)
+    {
+        <div class="more"><button class="btn" @onclick="() => _shown += PageSize">Mostrar mais (@(rows.Count - _shown))</button></div>
+    }
+}
+
+@code {
+    private const int PageSize = 100;
+
+    private static readonly (string Key, string Label)[] Filters =
+    [
+        ("all", "Todos"),
+        ("played", "Já abertos"),
+        ("never", "Nunca abertos"),
+        ("sale", "Em promoção"),
+        ("top", "Muito bem avaliados"),
+    ];
+
+    [Parameter, EditorRequired]
+    public string Currency { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback<StatsGameDto> OnOpen { get; set; }
+
+    private List<StatsRowDto>? _rows;
+    private string? _error;
+    private string _search = string.Empty;
+    private string _filter = "all";
+    private string _sort = "hours";
+    private bool _descending = true;
+    private int _shown = PageSize;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _error = null;
+        try
+        {
+            _rows = (await Api.GetStatsGamesAsync(CancellationToken.None)).ToList();
+        }
+        catch (ApiException exception)
+        {
+            _error = exception.Message;
+        }
+    }
+
+    private void SetFilter(string key)
+    {
+        _filter = key;
+        _shown = PageSize;
+    }
+
+    private void SortBy(string key)
+    {
+        _descending = _sort == key ? !_descending : key != "title";
+        _sort = key;
+    }
+
+    private string Arrow(string key) => _sort != key ? string.Empty : _descending ? "▼" : "▲";
+
+    private static double? PerHour(StatsRowDto row) =>
+        row.Minutes >= 60 && row.Price is > 0 ? (double)row.Price.Value / (row.Minutes / 60.0) : null;
+
+    private string PriceText(StatsRowDto row) =>
+        row.Price is null ? string.Empty : row.Price == 0 ? "Grátis" : DealFormat.Money(row.Price.Value, Currency) + (row.DiscountPercent > 0 ? $" (-{row.DiscountPercent}%)" : string.Empty);
+
+    private string PerHourText(StatsRowDto row) =>
+        PerHour(row) is { } value ? DealFormat.Money((decimal)value, Currency) : string.Empty;
+
+    private static StatsGameDto ToGame(StatsRowDto row) =>
+        new(row.AppId, row.Title, row.Minutes, row.RecentMinutes, row.LastPlayedAt, row.Price, row.NormalPrice, row.ReviewPercent, null);
+
+    private List<StatsRowDto> Visible()
+    {
+        IEnumerable<StatsRowDto> rows = _rows!;
+        if (!string.IsNullOrWhiteSpace(_search))
+        {
+            string term = _search.Trim();
+            rows = rows.Where(r => r.Title.Contains(term, StringComparison.OrdinalIgnoreCase) || r.Genres.Contains(term, StringComparison.OrdinalIgnoreCase));
+        }
+
+        rows = _filter switch
+        {
+            "played" => rows.Where(r => r.Minutes > 0),
+            "never" => rows.Where(r => r.Minutes == 0),
+            "sale" => rows.Where(r => r.DiscountPercent > 0),
+            "top" => rows.Where(r => r.ReviewPercent >= 90 && r.ReviewCount >= 500),
+            _ => rows,
+        };
+
+        Func<StatsRowDto, object?> key = _sort switch
+        {
+            "title" => r => r.Title.ToLowerInvariant(),
+            "recent" => r => r.RecentMinutes,
+            "last" => r => r.LastPlayedAt,
+            "price" => r => r.Price,
+            "perhour" => r => PerHour(r),
+            "reviews" => r => r.ReviewPercent,
+            "meta" => r => r.Metacritic,
+            _ => r => r.Minutes,
+        };
+
+        return (_descending ? rows.OrderByDescending(key) : rows.OrderBy(key)).ThenBy(r => r.Title).ToList();
+    }
+}

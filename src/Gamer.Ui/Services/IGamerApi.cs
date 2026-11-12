@@ -50,6 +50,7 @@ public interface IGamerApi
     Task<StatsDto> GetStatsAsync(CancellationToken cancellationToken);
     Task<SteamAppDetailDto> GetSteamAppAsync(long appId, CancellationToken cancellationToken);
     Task<IReadOnlyList<PlayersNowDto>> GetPlayersNowAsync(IEnumerable<long> appIds, CancellationToken cancellationToken);
+    Task<IReadOnlyList<StatsRowDto>> GetStatsGamesAsync(CancellationToken cancellationToken);
     Task<EnrichmentStatusDto> StartEnrichmentAsync(CancellationToken cancellationToken);
     Task<EnrichmentStatusDto> GetEnrichmentStatusAsync(CancellationToken cancellationToken);
     Task<FriendsDto> GetFriendsAsync(bool refresh, CancellationToken cancellationToken);

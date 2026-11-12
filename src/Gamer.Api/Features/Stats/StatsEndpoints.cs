@@ -13,6 +13,9 @@ public static class StatsEndpoints
         group.MapGet("/", async (StatsService stats, CancellationToken ct) =>
             Results.Ok(await stats.GetAsync(ct)));
 
+        group.MapGet("/games", async (StatsService stats, CancellationToken ct) =>
+            Results.Ok(await stats.GetGamesAsync(ct)));
+
         group.MapGet("/apps/{appId:long}", async (long appId, StatsService stats, CancellationToken ct) =>
             await stats.GetAppAsync(appId, ct) is { } detail ? Results.Ok(detail) : Results.NotFound());
 

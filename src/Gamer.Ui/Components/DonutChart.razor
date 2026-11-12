@@ -1,0 +1,54 @@
+@using System.Globalization
+
+<div class="donut-wrap">
+    <div class="donut" style="background:@Gradient">
+        <div class="donut-hole"><strong>@Center</strong><span>@Caption</span></div>
+    </div>
+    <ul class="donut-legend">
+        @foreach (DonutSlice slice in Slices)
+        {
+            <li>
+                <i style="background:@slice.Color"></i>
+                <span>@slice.Label</span>
+                <b>@slice.Value <small>@Percent(slice)</small></b>
+            </li>
+        }
+    </ul>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<DonutSlice> Slices { get; set; } = [];
+
+    [Parameter]
+    public string Center { get; set; } = string.Empty;
+
+    [Parameter]
+    public string Caption { get; set; } = string.Empty;
+
+    private int Total => Slices.Sum(s => s.Value);
+
+    private string Percent(DonutSlice slice) => Total == 0 ? string.Empty : $"{100 * slice.Value / Total}%";
+
+    private string Gradient
+    {
+        get
+        {
+            if (Total == 0)
+            {
+                return "var(--surface-2)";
+            }
+
+            double start = 0;
+            List<string> stops = [];
+            foreach (DonutSlice slice in Slices.Where(s => s.Value > 0))
+            {
+                double end = start + 100.0 * slice.Value / Total;
+                stops.Add(string.Create(CultureInfo.InvariantCulture, $"{slice.Color} {start:F2}% {end:F2}%"));
+                start = end;
+            }
+
+            return $"conic-gradient({string.Join(", ", stops)})";
+        }
+    }
+}

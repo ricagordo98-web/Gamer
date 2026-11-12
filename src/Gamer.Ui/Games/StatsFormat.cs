@@ -4,6 +4,8 @@ namespace Gamer.Ui.Games;
 
 public record BarItem(string Label, int Value, string Text);
 
+public record DonutSlice(string Label, int Value, string Color);
+
 public static class StatsFormat
 {
     private static readonly CultureInfo Portuguese = CultureInfo.GetCultureInfo("pt-PT");
@@ -15,6 +17,9 @@ public static class StatsFormat
             < 60 => $"{minutes} min",
             _ => $"{(minutes / 60.0).ToString(minutes >= 6000 ? "N0" : "0.#", Portuguese)} h",
         };
+
+    public static string Days(int minutes) =>
+        minutes < 1440 ? Hours(minutes) : $"{(minutes / 1440.0).ToString("0.#", Portuguese)} dias";
 
     public static string Players(int? players) =>
         players switch

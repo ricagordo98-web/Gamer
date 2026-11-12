@@ -170,7 +170,7 @@ public sealed class StatsTests : IClassFixture<GamerApiFactory>
             new SteamAppInfo { AppId = 2, Price = 10m, NormalPrice = 10m, Currency = "EUR", Genres = "Action" });
         await db.SaveChangesAsync();
 
-        StatsDto stats = await new StatsService(db, new SteamEnrichmentRunner(Substitute.For<IServiceScopeFactory>(), NullLogger<SteamEnrichmentRunner>.Instance)).GetAsync(CancellationToken.None);
+        StatsDto stats = await new StatsService(db, new SteamEnrichmentRunner(Substitute.For<IServiceScopeFactory>(), NullLogger<SteamEnrichmentRunner>.Instance), TimeProvider.System).GetAsync(CancellationToken.None);
 
         stats.SteamGames.Should().Be(2);
         stats.NeverPlayed.Should().Be(1);
@@ -181,6 +181,52 @@ public sealed class StatsTests : IClassFixture<GamerApiFactory>
         stats.Recent.Select(g => g.Title).Should().Equal("Played");
         stats.NeverPlayedTop.Select(g => g.Title).Should().Equal("Unopened");
         stats.Genres.First().Should().Be(new StatsCountDto("Action", 2, 120));
+    }
+
+    [Fact]
+    public async Task Stats_BucketsRecencyTagsAndRankings()
+    {
+        using TestDatabase database = new();
+        using GamerDbContext db = database.CreateContext();
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        db.SteamLibrary.AddRange(
+            new SteamLibraryItem { AppId = 1, Title = "Never", PlaytimeMinutes = 0 },
+            new SteamLibraryItem { AppId = 2, Title = "Short", PlaytimeMinutes = 90, LastPlayedAt = now.AddDays(-2) },
+            new SteamLibraryItem { AppId = 3, Title = "Mid", PlaytimeMinutes = 300, LastPlayedAt = now.AddDays(-20) },
+            new SteamLibraryItem { AppId = 4, Title = "Long", PlaytimeMinutes = 4000, LastPlayedAt = now.AddDays(-800) });
+        db.SteamAppInfos.AddRange(
+            new SteamAppInfo { AppId = 1, Price = 40m, NormalPrice = 40m, Currency = "EUR", ReviewPercent = 80, ReviewCount = 50 },
+            new SteamAppInfo { AppId = 2, Price = 9m, NormalPrice = 9m, Currency = "EUR", ReviewPercent = 95, ReviewCount = 1000, Tags = "Indie, Roguelike" },
+            new SteamAppInfo { AppId = 3, Price = 30m, NormalPrice = 30m, Currency = "EUR", ReviewPercent = 90, ReviewCount = 2000, Tags = "Indie" },
+            new SteamAppInfo { AppId = 4, Price = 20m, NormalPrice = 20m, Currency = "EUR", ReviewPercent = 70, ReviewCount = 5000 });
+        await db.SaveChangesAsync();
+
+        StatsDto stats = await new StatsService(db, new SteamEnrichmentRunner(Substitute.For<IServiceScopeFactory>(), NullLogger<SteamEnrichmentRunner>.Instance), TimeProvider.System).GetAsync(CancellationToken.None);
+
+        stats.NeverPlayedValue.Should().Be(40m);
+        stats.PlaytimeBuckets.Select(b => b.Count).Should().Equal(1, 1, 1, 0, 1);
+        stats.Recency.Select(b => b.Count).Should().Equal(1, 1, 0, 0, 1);
+        stats.Tags.First().Should().Be(new StatsCountDto("Indie", 2, 390));
+        stats.BestRated.Select(g => g.Title).Should().Equal("Short", "Mid", "Long");
+        stats.BestValue.Select(g => g.Title).Should().Equal("Long", "Short", "Mid");
+    }
+
+    [Fact]
+    public async Task Games_ListsEveryLibraryGameWithItsInfo()
+    {
+        using TestDatabase database = new();
+        using GamerDbContext db = database.CreateContext();
+        db.SteamLibrary.AddRange(
+            new SteamLibraryItem { AppId = 1, Title = "Beta", PlaytimeMinutes = 10 },
+            new SteamLibraryItem { AppId = 2, Title = "Alpha", PlaytimeMinutes = 0 });
+        db.SteamAppInfos.Add(new SteamAppInfo { AppId = 1, Price = 5m, DiscountPercent = 50, Metacritic = 88, Genres = "RPG" });
+        await db.SaveChangesAsync();
+
+        IReadOnlyList<StatsRowDto> rows = await new StatsService(db, new SteamEnrichmentRunner(Substitute.For<IServiceScopeFactory>(), NullLogger<SteamEnrichmentRunner>.Instance), TimeProvider.System).GetGamesAsync(CancellationToken.None);
+
+        rows.Select(r => r.Title).Should().Equal("Alpha", "Beta");
+        rows[1].Should().Match<StatsRowDto>(r => r.Price == 5m && r.DiscountPercent == 50 && r.Metacritic == 88 && r.Genres == "RPG");
+        rows[0].Price.Should().BeNull();
     }
 
     [Fact]
@@ -202,7 +248,7 @@ public sealed class StatsTests : IClassFixture<GamerApiFactory>
         db.SteamAppInfos.Add(new SteamAppInfo { AppId = 5, Price = 2m, NormalPrice = 10m, LowestPrice = 2m, Genres = "Indie, RPG" });
         await db.SaveChangesAsync();
 
-        SteamAppDetailDto? detail = await new StatsService(db, new SteamEnrichmentRunner(Substitute.For<IServiceScopeFactory>(), NullLogger<SteamEnrichmentRunner>.Instance)).GetAppAsync(5, CancellationToken.None);
+        SteamAppDetailDto? detail = await new StatsService(db, new SteamEnrichmentRunner(Substitute.For<IServiceScopeFactory>(), NullLogger<SteamEnrichmentRunner>.Instance), TimeProvider.System).GetAppAsync(5, CancellationToken.None);
 
         detail!.AtHistoricLow.Should().BeTrue();
         detail.Genres.Should().Equal("Indie", "RPG");

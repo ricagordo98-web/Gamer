@@ -1,0 +1,33 @@
+<section>
+    <h3 class="section-title">@Title</h3>
+    <div class="card stat-list">
+        @if (Games.Count == 0)
+        {
+            <p class="muted">@Empty</p>
+        }
+        @foreach (StatsGameDto game in Games)
+        {
+            <button class="stat-row" @onclick="() => OnOpen.InvokeAsync(game)">
+                <span class="stat-title">@game.Title</span>
+                <span class="stat-meta">@Meta(game)</span>
+            </button>
+        }
+    </div>
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public IReadOnlyList<StatsGameDto> Games { get; set; } = [];
+
+    [Parameter, EditorRequired]
+    public Func<StatsGameDto, string> Meta { get; set; } = _ => string.Empty;
+
+    [Parameter]
+    public string Empty { get; set; } = "Ainda sem dados.";
+
+    [Parameter]
+    public EventCallback<StatsGameDto> OnOpen { get; set; }
+}

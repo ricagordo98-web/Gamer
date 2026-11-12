@@ -191,6 +191,9 @@ public class GamerApiClient(HttpClient http) : IGamerApi
     public async Task<IReadOnlyList<PlayersNowDto>> GetPlayersNowAsync(IEnumerable<long> appIds, CancellationToken cancellationToken) =>
         await SendAsync<List<PlayersNowDto>>(() => http.GetAsync($"api/stats/players?ids={string.Join(',', appIds)}", cancellationToken), cancellationToken);
 
+    public async Task<IReadOnlyList<StatsRowDto>> GetStatsGamesAsync(CancellationToken cancellationToken) =>
+        await SendAsync<List<StatsRowDto>>(() => http.GetAsync("api/stats/games", cancellationToken), cancellationToken);
+
     public Task<EnrichmentStatusDto> StartEnrichmentAsync(CancellationToken cancellationToken) =>
         SendAsync<EnrichmentStatusDto>(() => http.PostAsync("api/stats/enrich", null, cancellationToken), cancellationToken);
 

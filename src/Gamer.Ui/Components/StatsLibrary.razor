@@ -1,0 +1,104 @@
+@inject GameLibrary Library
+
+@{
+    List<GameDto> games = Library.Games.ToList();
+    DashboardStats library = DashboardStats.From(games, 12);
+    List<GameDto> rated = games.Where(g => g.Rating is not null).ToList();
+    string average = rated.Count == 0 ? "—" : rated.Average(g => g.Rating!.Value).ToString("0.0", System.Globalization.CultureInfo.GetCultureInfo("pt-PT"));
+    int digital = games.Count(g => g.Format == PlatformFormat.Digital);
+}
+
+@if (games.Count == 0)
+{
+    <div class="empty"><p>A biblioteca ainda está vazia.</p></div>
+}
+else
+{
+    <section class="tiles tiles-5">
+        <div class="tile"><strong>@library.Total</strong><span>Jogos</span></div>
+        <div class="tile st-backlog"><strong>@library.Backlog</strong><span>Backlog</span></div>
+        <div class="tile st-playing"><strong>@library.Playing</strong><span>A jogar</span></div>
+        <div class="tile st-completed"><strong>@library.Completed</strong><span>Terminados</span></div>
+        <div class="tile deck"><strong>@average</strong><span>Nota média (@rated.Count)</span></div>
+    </section>
+
+    <div class="stats-columns">
+        <section>
+            <h3 class="section-title">Por estado</h3>
+            <div class="card">
+                <DonutChart Slices="StatusSlices(library)" Center="@(library.CompletionPercent + "%")" Caption="terminados" />
+            </div>
+        </section>
+        <section>
+            <h3 class="section-title">Digital ou físico</h3>
+            <div class="card">
+                <DonutChart Slices="FormatSlices(digital, games.Count - digital)" Center="@games.Count.ToString()" Caption="jogos" />
+            </div>
+        </section>
+        <section>
+            <h3 class="section-title">Distribuição das tuas notas</h3>
+            <div class="card">
+                <ColumnChart Items="RatingBars(rated)" Color="var(--accent)" />
+                <p class="muted chart-note">Número de jogos por nota de 1 a 10.</p>
+            </div>
+        </section>
+    </div>
+
+    <div class="stats-columns">
+        <section>
+            <h3 class="section-title">Por plataforma</h3>
+            <div class="card">
+                <BarList Items="library.ByPlatform.Select(p => new BarItem(p.Name, p.Count, p.Count.ToString())).ToList()" Color="var(--accent-2)" />
+            </div>
+        </section>
+        <section>
+            <h3 class="section-title">Terminados por plataforma</h3>
+            <div class="card">
+                <BarList Items="CompletionBars(games)" Color="var(--st-completed)" />
+            </div>
+        </section>
+        <section>
+            <h3 class="section-title">As tuas melhores notas</h3>
+            <div class="card stat-list">
+                @if (rated.Count == 0)
+                {
+                    <p class="muted">Ainda não deste notas a nenhum jogo.</p>
+                }
+                @foreach (GameDto game in rated.OrderByDescending(g => g.Rating).ThenBy(g => g.Title).Take(10))
+                {
+                    <div class="stat-row static">
+                        <span class="stat-title">@game.Title</span>
+                        <span class="stat-meta">@game.Rating/10 · @game.PlatformName</span>
+                    </div>
+                }
+            </div>
+        </section>
+    </div>
+}
+
+@code {
+    private static IReadOnlyList<DonutSlice> StatusSlices(DashboardStats library) =>
+    [
+        new("Backlog", library.Backlog, "var(--st-backlog)"),
+        new("A jogar", library.Playing, "var(--st-playing)"),
+        new("Terminados", library.Completed, "var(--st-completed)"),
+    ];
+
+    private static IReadOnlyList<DonutSlice> FormatSlices(int digital, int physical) =>
+    [
+        new("Digital", digital, "var(--accent-2)"),
+        new("Físico", physical, "var(--accent-3)"),
+    ];
+
+    private static IReadOnlyList<BarItem> RatingBars(List<GameDto> rated) =>
+        Enumerable.Range(1, 10).Select(n => new BarItem(n.ToString(), rated.Count(g => g.Rating == n), rated.Count(g => g.Rating == n).ToString())).ToList();
+
+    private static IReadOnlyList<BarItem> CompletionBars(List<GameDto> games) =>
+        games.GroupBy(g => g.PlatformName)
+            .Select(g => new { g.Key, Completed = g.Count(x => x.Status == GameStatus.Completed), Total = g.Count() })
+            .Where(g => g.Completed > 0)
+            .OrderByDescending(g => g.Completed)
+            .Take(10)
+            .Select(g => new BarItem(g.Key, g.Completed, $"{g.Completed}/{g.Total}"))
+            .ToList();
+}

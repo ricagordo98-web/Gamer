@@ -1,0 +1,83 @@
+@inject GameLibrary Library
+
+@{
+    DashboardStats library = DashboardStats.From(Library.Games.ToList());
+    StatsGameDto? top = Stats.TopPlayed.FirstOrDefault(g => g.Minutes > 0);
+    string average = Stats.PlayedGames == 0 ? "—" : StatsFormat.Hours(Stats.TotalMinutes / Stats.PlayedGames);
+}
+
+<section class="card hero stats-hero">
+    <ProgressRing Percent="library.CompletionPercent" Caption="terminados" />
+    <div class="hero-text">
+        <h2>@StatsFormat.Hours(Stats.TotalMinutes) de jogo na Steam</h2>
+        <p class="muted">
+            Isso dá cerca de @StatsFormat.Days(Stats.TotalMinutes) de relógio seguido. Em média @average por jogo que abriste@(top is null ? "." : $", e o teu rei é o {top.Title} com {StatsFormat.Hours(top.Minutes)}.")
+        </p>
+        <div class="insights">
+            <span class="insight"><b>@library.Completed</b> de @library.Total jogos terminados</span>
+            <span class="insight"><b>@Stats.NeverPlayed</b> nunca abertos@(Stats.NeverPlayedValue > 0 ? $" (valem {DealFormat.Money(Stats.NeverPlayedValue, Stats.Currency)})" : string.Empty)</span>
+            <span class="insight"><b>@StatsFormat.Hours(Stats.RecentMinutes)</b> nas últimas 2 semanas</span>
+        </div>
+    </div>
+</section>
+
+<section class="tiles tiles-5">
+    <div class="tile"><strong>@Stats.SteamGames</strong><span>Jogos Steam</span></div>
+    <div class="tile st-playing"><strong>@Stats.PlayedGames</strong><span>Já abertos</span></div>
+    <div class="tile st-backlog"><strong>@Stats.NeverPlayed</strong><span>Nunca abertos</span></div>
+    <div class="tile st-completed"><strong>@(Stats.PricedGames == 0 ? "—" : DealFormat.Money(Stats.ValueCurrent, Stats.Currency))</strong><span>Valor da conta (hoje)</span></div>
+    <div class="tile deck"><strong>@(Stats.PricedGames == 0 ? "—" : StatsFormat.PerHour(Stats.ValueCurrent, Stats.TotalMinutes, Stats.Currency))</strong><span>Custo por hora</span></div>
+</section>
+
+<div class="stats-columns">
+    <section>
+        <h3 class="section-title">A tua biblioteca</h3>
+        <div class="card">
+            <DonutChart Slices="StatusSlices(library)" Center="@(library.CompletionPercent + "%")" Caption="terminados" />
+        </div>
+    </section>
+    <section>
+        <h3 class="section-title">Quanto jogaste cada jogo</h3>
+        <div class="card">
+            <ColumnChart Items="Buckets(Stats.PlaytimeBuckets)" Color="var(--accent-2)" />
+            <p class="muted chart-note">Número de jogos Steam por tempo de jogo.</p>
+        </div>
+    </section>
+    <section>
+        <h3 class="section-title">Quando jogaste pela última vez</h3>
+        <div class="card">
+            <ColumnChart Items="Buckets(Stats.Recency)" Color="var(--accent-3)" />
+            <p class="muted chart-note">Jogos já abertos, pela data do último jogo.</p>
+        </div>
+    </section>
+</div>
+
+<div class="stats-columns">
+    <StatGameList Title="Mais jogados" Games="Stats.TopPlayed.Where(g => g.Minutes > 0).Take(5).ToList()" Meta="g => StatsFormat.Hours(g.Minutes)" OnOpen="OnOpen" />
+    <StatGameList Title="Jogados recentemente" Games="Stats.Recent.Take(5).ToList()" Meta="RecentMeta" Empty="Nada nas últimas duas semanas." OnOpen="OnOpen" />
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public StatsDto Stats { get; set; } = default!;
+
+    [Parameter]
+    public IReadOnlyDictionary<long, int?> Players { get; set; } = new Dictionary<long, int?>();
+
+    [Parameter]
+    public EventCallback<StatsGameDto> OnOpen { get; set; }
+
+    private static IReadOnlyList<DonutSlice> StatusSlices(DashboardStats library) =>
+    [
+        new("Backlog", library.Backlog, "var(--st-backlog)"),
+        new("A jogar", library.Playing, "var(--st-playing)"),
+        new("Terminados", library.Completed, "var(--st-completed)"),
+    ];
+
+    private static IReadOnlyList<BarItem> Buckets(IReadOnlyList<StatsCountDto> counts) =>
+        counts.Select(c => new BarItem(c.Name, c.Count, c.Count.ToString())).ToList();
+
+    private string RecentMeta(StatsGameDto game) =>
+        $"{StatsFormat.Hours(game.RecentMinutes)} · {StatsFormat.LastPlayed(game.LastPlayedAt, DateTimeOffset.UtcNow)}"
+        + (Players.TryGetValue(game.AppId, out int? players) && players is not null ? $" · {StatsFormat.Players(players)}" : string.Empty);
+}
