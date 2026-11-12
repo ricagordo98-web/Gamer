@@ -1,0 +1,142 @@
+@page "/friends"
+@implements IDisposable
+@inject IGamerApi Api
+
+<header class="page-header">
+    <h1>Amigos <small>@(_friends is null ? string.Empty : _friends.Friends.Count(f => f.State == FriendStates.Playing).ToString() + " a jogar")</small></h1>
+    <div class="header-actions-inline">
+        <button class="btn" @onclick="() => LoadAsync(true)" disabled="@_loading">
+            <Icon Name="refresh" Size="18" /> @(_loading ? "A atualizar…" : "Atualizar")
+        </button>
+    </div>
+</header>
+
+@if (_friends is null && _loading)
+{
+    <div class="empty"><div class="spinner"></div><p>A ver o que os teus amigos andam a jogar…</p></div>
+}
+else if (_error is not null && _friends is null)
+{
+    <div class="empty">
+        <p>@_error</p>
+        <button class="btn btn-primary" @onclick="() => LoadAsync(true)">Tentar de novo</button>
+    </div>
+}
+else if (_friends is not null)
+{
+    List<FriendDto> playing = _friends.Friends.Where(f => f.State == FriendStates.Playing).ToList();
+    List<FriendDto> online = _friends.Friends.Where(f => f.State is FriendStates.Online or FriendStates.Away).ToList();
+    List<FriendDto> offline = _friends.Friends.Where(f => f.State == FriendStates.Offline).ToList();
+
+    <p class="muted promo-updated">Atualizado @DealFormat.Ago(_friends.UpdatedAt, DateTimeOffset.UtcNow). Renova sozinho de minuto a minuto.@(_error is null ? string.Empty : " " + _error)</p>
+
+    @if (_friends.Friends.Count == 0)
+    {
+        <div class="empty"><p>Não encontrei amigos. A lista de amigos do teu perfil Steam tem de estar pública.</p></div>
+    }
+    else
+    {
+        <h3 class="section-title">A jogar agora (@playing.Count)</h3>
+        @if (playing.Count == 0)
+        {
+            <div class="empty"><p>Ninguém a jogar neste momento.</p></div>
+        }
+        else
+        {
+            @foreach (IGrouping<string, FriendDto> game in playing.GroupBy(f => f.GameName ?? "Jogo desconhecido"))
+            {
+                <section class="card friend-game">
+                    <div class="friend-game-head">
+                        <strong>@game.Key</strong>
+                        <span class="muted">@game.Count() @(game.Count() == 1 ? "amigo" : "amigos")</span>
+                        @if (game.Any(f => f.OwnsGame))
+                        {
+                            <span class="cart-pill">Tens este jogo</span>
+                        }
+                    </div>
+                    <div class="friend-list">
+                        @foreach (FriendDto friend in game)
+                        {
+                            <FriendRow Friend="friend" />
+                        }
+                    </div>
+                </section>
+            }
+        }
+
+        <h3 class="section-title">Online (@online.Count)</h3>
+        <div class="card friend-list">
+            @if (online.Count == 0)
+            {
+                <p class="muted">Ninguém online.</p>
+            }
+            @foreach (FriendDto friend in online)
+            {
+                <FriendRow Friend="friend" />
+            }
+        </div>
+
+        <details class="friend-offline">
+            <summary class="section-title">Offline (@offline.Count)</summary>
+            <div class="card friend-list">
+                @foreach (FriendDto friend in offline)
+                {
+                    <FriendRow Friend="friend" />
+                }
+            </div>
+        </details>
+    }
+}
+
+@code {
+    private static readonly TimeSpan PollInterval = TimeSpan.FromMinutes(1);
+
+    private FriendsDto? _friends;
+    private string? _error;
+    private bool _loading;
+    private bool _disposed;
+
+    public void Dispose() => _disposed = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync(false);
+        _ = PollAsync();
+    }
+
+    private async Task LoadAsync(bool refresh)
+    {
+        _loading = true;
+        try
+        {
+            _friends = await Api.GetFriendsAsync(refresh, CancellationToken.None);
+            _error = null;
+        }
+        catch (ApiException exception)
+        {
+            _error = exception.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task PollAsync()
+    {
+        while (!_disposed)
+        {
+            await Task.Delay(PollInterval);
+            if (_disposed)
+            {
+                return;
+            }
+
+            await InvokeAsync(async () =>
+            {
+                await LoadAsync(false);
+                StateHasChanged();
+            });
+        }
+    }
+}

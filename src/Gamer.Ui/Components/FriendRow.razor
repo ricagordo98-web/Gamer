@@ -1,0 +1,25 @@
+<a class="friend-row" href="@Friend.ProfileUrl" target="_blank" rel="noopener">
+    @if (Friend.AvatarUrl is not null)
+    {
+        <img class="friend-avatar @Friend.State" src="@Friend.AvatarUrl" alt="" loading="lazy" />
+    }
+    else
+    {
+        <span class="friend-avatar @Friend.State"></span>
+    }
+    <span class="friend-name">@Friend.Name</span>
+    <span class="stat-meta">@Detail</span>
+</a>
+
+@code {
+    [Parameter, EditorRequired]
+    public FriendDto Friend { get; set; } = default!;
+
+    private string Detail => Friend.State switch
+    {
+        FriendStates.Playing => "a jogar",
+        FriendStates.Online => "online",
+        FriendStates.Away => "ausente",
+        _ => Friend.LastLogoffAt is { } at ? "visto " + DealFormat.Ago(at, DateTimeOffset.UtcNow) : string.Empty,
+    };
+}

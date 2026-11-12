@@ -2,6 +2,7 @@
 using System.Text.Json;
 using Gamer.Contracts.Auth;
 using Gamer.Contracts.Deals;
+using Gamer.Contracts.Friends;
 using Gamer.Contracts.Games;
 using Gamer.Contracts.Library;
 using Gamer.Contracts.Stats;
@@ -195,6 +196,9 @@ public class GamerApiClient(HttpClient http) : IGamerApi
 
     public Task<EnrichmentStatusDto> GetEnrichmentStatusAsync(CancellationToken cancellationToken) =>
         SendAsync<EnrichmentStatusDto>(() => http.GetAsync("api/stats/enrich", cancellationToken), cancellationToken);
+
+    public Task<FriendsDto> GetFriendsAsync(bool refresh, CancellationToken cancellationToken) =>
+        SendAsync<FriendsDto>(() => http.GetAsync($"api/friends?refresh={refresh}", cancellationToken), cancellationToken);
 
     public async Task<bool> PingAsync(CancellationToken cancellationToken)
     {

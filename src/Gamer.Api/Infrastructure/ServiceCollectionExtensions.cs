@@ -5,6 +5,7 @@ using Gamer.Api.Features.Cart;
 using Gamer.Api.Features.Auth;
 using Gamer.Api.Features.Deals;
 using Gamer.Api.Features.Deals.Bundles;
+using Gamer.Api.Features.Friends;
 using Gamer.Api.Features.Games;
 using Gamer.Api.Features.Import;
 using Gamer.Api.Features.Library;
@@ -52,6 +53,13 @@ public static class ServiceCollectionExtensions
             client.BaseAddress = new Uri("https://api.isthereanydeal.com/");
             client.Timeout = TimeSpan.FromSeconds(30);
         });
+        services.AddHttpClient<ISteamFriendsClient, SteamFriendsClient>(client =>
+        {
+            client.BaseAddress = new Uri("https://api.steampowered.com/");
+            client.Timeout = TimeSpan.FromSeconds(30);
+        });
+        services.AddScoped<FriendsService>();
+        services.AddSingleton<FriendsCache>();
         services.AddScoped<SteamEnrichmentService>();
         services.AddScoped<StatsService>();
         services.AddSingleton<SteamEnrichmentRunner>();

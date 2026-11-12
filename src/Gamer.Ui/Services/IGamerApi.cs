@@ -1,5 +1,6 @@
 ﻿using Gamer.Contracts.Auth;
 using Gamer.Contracts.Deals;
+using Gamer.Contracts.Friends;
 using Gamer.Contracts.Games;
 using Gamer.Contracts.Library;
 using Gamer.Contracts.Stats;
@@ -51,5 +52,6 @@ public interface IGamerApi
     Task<IReadOnlyList<PlayersNowDto>> GetPlayersNowAsync(IEnumerable<long> appIds, CancellationToken cancellationToken);
     Task<EnrichmentStatusDto> StartEnrichmentAsync(CancellationToken cancellationToken);
     Task<EnrichmentStatusDto> GetEnrichmentStatusAsync(CancellationToken cancellationToken);
+    Task<FriendsDto> GetFriendsAsync(bool refresh, CancellationToken cancellationToken);
     Task<bool> PingAsync(CancellationToken cancellationToken);
 }
