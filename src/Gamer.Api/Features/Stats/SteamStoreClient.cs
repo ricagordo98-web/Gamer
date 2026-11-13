@@ -12,10 +12,13 @@ public record SteamSpyData(string? Owners, int? AverageMinutes, IReadOnlyList<st
 
 public record SteamStoreInfo(SteamStoreDetails? Details, SteamReviews? Reviews, SteamSpyData? Spy);
 
+public record SteamPrice(decimal Price, decimal NormalPrice, string Currency, int DiscountPercent);
+
 public interface ISteamStoreClient
 {
     Task<SteamStoreInfo> GetInfoAsync(long appId, CancellationToken cancellationToken);
     Task<int?> GetCurrentPlayersAsync(long appId, CancellationToken cancellationToken);
+    Task<IReadOnlyDictionary<long, SteamPrice>> GetPricesAsync(IReadOnlyCollection<long> appIds, CancellationToken cancellationToken);
 }
 
 public class SteamStoreClient(HttpClient http) : ISteamStoreClient
@@ -49,6 +52,42 @@ public class SteamStoreClient(HttpClient http) : ISteamStoreClient
         }
 
         return new SteamStoreInfo(details, reviews ?? spy?.Reviews, spy);
+    }
+
+    public async Task<IReadOnlyDictionary<long, SteamPrice>> GetPricesAsync(IReadOnlyCollection<long> appIds, CancellationToken cancellationToken)
+    {
+        using JsonDocument document = await TryGetJsonAsync(
+            $"https://store.steampowered.com/api/appdetails?appids={string.Join(',', appIds)}&filters=price_overview&cc=pt", cancellationToken)
+            ?? throw new SteamException("Não foi possível obter os preços da Steam.");
+        return ParsePrices(document.RootElement);
+    }
+
+    public static Dictionary<long, SteamPrice> ParsePrices(JsonElement root)
+    {
+        Dictionary<long, SteamPrice> prices = [];
+        if (root.ValueKind != JsonValueKind.Object)
+        {
+            return prices;
+        }
+
+        foreach (JsonProperty entry in root.EnumerateObject())
+        {
+            if (!long.TryParse(entry.Name, out long appId)
+                || !entry.Value.TryGetProperty("success", out JsonElement success) || !success.GetBoolean()
+                || !entry.Value.TryGetProperty("data", out JsonElement data) || data.ValueKind != JsonValueKind.Object
+                || !data.TryGetProperty("price_overview", out JsonElement overview))
+            {
+                continue;
+            }
+
+            prices[appId] = new SteamPrice(
+                overview.GetProperty("final").GetInt32() / 100m,
+                overview.GetProperty("initial").GetInt32() / 100m,
+                overview.GetProperty("currency").GetString() ?? string.Empty,
+                overview.TryGetProperty("discount_percent", out JsonElement percent) ? percent.GetInt32() : 0);
+        }
+
+        return prices;
     }
 
     public async Task<int?> GetCurrentPlayersAsync(long appId, CancellationToken cancellationToken)

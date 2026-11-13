@@ -2,6 +2,7 @@
 @implements IDisposable
 @inject IGamerApi Api
 @inject ToastService Toasts
+@inject StorePreferences Preferences
 
 <ShopTabs />
 
@@ -150,7 +151,12 @@ else
         ? $"Atualizado {DealFormat.Ago(updated, DateTimeOffset.UtcNow)}. Preços das lojas, sem garantia de stock."
         : "Ainda sem dados.";
 
-    protected override Task OnInitializedAsync() => LoadAsync(true);
+    protected override async Task OnInitializedAsync()
+    {
+        await Preferences.EnsureLoadedAsync();
+        _hideOwned = Preferences.HideOwned;
+        await LoadAsync(true);
+    }
 
     public void Dispose() => _disposed = true;
 

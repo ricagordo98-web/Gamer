@@ -1083,3 +1083,12 @@ h1 { font-size: 1.8rem; text-transform: var(--caps); letter-spacing: var(--caps-
 .stats-table .num { text-align: right; }
 .stats-table .title-cell { white-space: normal; min-width: 200px; font-weight: 600; }
 .stats-table .title-cell small { display: block; color: var(--muted); font-weight: 400; font-size: .75rem; }
+
+/* Navigation v2 */
+button.tab { background: none; border: 0; font-family: inherit; cursor: pointer; }
+.more-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+.more-item { display: grid; grid-template-columns: 40px 1fr; grid-template-rows: auto auto; column-gap: 14px; align-items: center; padding: 14px; border-radius: 16px; background: var(--surface-2); border: 1px solid var(--border); color: var(--text); }
+.more-item .ico { grid-row: span 2; color: var(--accent-2); }
+.more-item small { color: var(--muted); }
+.more-item.active { border-color: var(--accent); }
+@media (min-width: 901px) { .shop-head { display: none; } }

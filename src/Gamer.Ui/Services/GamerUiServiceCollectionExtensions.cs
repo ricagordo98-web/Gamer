@@ -17,6 +17,7 @@ public static class GamerUiServiceCollectionExtensions
         services.AddSingleton<ToastService>();
         services.AddSingleton<GameLibrary>();
         services.AddScoped<ThemeService>();
+        services.AddScoped<StorePreferences>();
         services.AddSingleton<CartState>();
         services.AddSingleton<AlertMonitor>();
         services.TryAddSingleton<ISystemNotifier, NoSystemNotifier>();

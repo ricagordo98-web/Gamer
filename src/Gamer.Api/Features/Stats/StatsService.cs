@@ -86,7 +86,8 @@ public class StatsService(GamerDbContext db, SteamEnrichmentRunner runner, TimeP
             Recency(library, now),
             Count(tagEntries, TagCount),
             bestRated,
-            bestValue);
+            bestValue,
+            infos.Values.Max(i => i.PriceUpdatedAt));
     }
 
     public async Task<IReadOnlyList<StatsRowDto>> GetGamesAsync(CancellationToken cancellationToken)
@@ -98,7 +99,7 @@ public class StatsService(GamerDbContext db, SteamEnrichmentRunner runner, TimeP
         {
             infos.TryGetValue(item.AppId, out SteamAppInfo? info);
             return new StatsRowDto(item.AppId, item.Title, item.PlaytimeMinutes, item.RecentMinutes, item.LastPlayedAt, info?.Price, info?.NormalPrice,
-                info?.DiscountPercent ?? 0, info?.ReviewPercent, info?.ReviewCount ?? 0, info?.Metacritic, info?.Genres ?? string.Empty);
+                info?.DiscountPercent ?? 0, info?.ReviewPercent, info?.ReviewCount ?? 0, info?.Metacritic, info?.Genres ?? string.Empty, LowestKnown(info));
         }).ToList();
     }
 
@@ -133,8 +134,14 @@ public class StatsService(GamerDbContext db, SteamEnrichmentRunner runner, TimeP
             info?.AverageMinutes,
             info?.LowestPrice,
             info?.LowestPriceShop,
-            info is { Price: { } price, LowestPrice: { } lowest } && price <= lowest);
+            info is { Price: { } price, LowestPrice: { } lowest } && price <= lowest,
+            info?.LowestSeenPrice,
+            info?.LowestSeenAt,
+            info?.PriceUpdatedAt);
     }
+
+    private static decimal? LowestKnown(SteamAppInfo? info) =>
+        info is null ? null : info.LowestPrice is { } historic && info.LowestSeenPrice is { } seen ? Math.Min(historic, seen) : info.LowestPrice ?? info.LowestSeenPrice;
 
     private static List<StatsCountDto> Count(List<(string Name, int Minutes)> entries, int take) =>
         entries

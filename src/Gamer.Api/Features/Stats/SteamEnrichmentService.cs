@@ -8,6 +8,7 @@ namespace Gamer.Api.Features.Stats;
 public class SteamEnrichmentService(GamerDbContext db, ISteamStoreClient store, IHistoricLowClient historicLow, ISteamSettingsService settings, TimeProvider clock, ILogger<SteamEnrichmentService> logger)
 {
     private const int MaxConsecutiveFailures = 5;
+    private const int PriceBatchSize = 50;
     private static readonly TimeSpan Staleness = TimeSpan.FromDays(7);
 
     public async Task<int> PendingAsync(CancellationToken cancellationToken) =>
@@ -15,6 +16,11 @@ public class SteamEnrichmentService(GamerDbContext db, ISteamStoreClient store, 
 
     public async Task RunAsync(TimeSpan delay, Action<int, int> report, CancellationToken cancellationToken)
     {
+        if (!await RefreshPricesAsync(delay, report, cancellationToken))
+        {
+            return;
+        }
+
         IReadOnlyList<long> pending = await FindPendingAsync(cancellationToken);
         string? itadKey = await settings.GetItadKeyAsync(cancellationToken);
         int done = 0;
@@ -47,6 +53,61 @@ public class SteamEnrichmentService(GamerDbContext db, ISteamStoreClient store, 
         }
     }
 
+    private async Task<bool> RefreshPricesAsync(TimeSpan delay, Action<int, int> report, CancellationToken cancellationToken)
+    {
+        List<SteamAppInfo> rows = await db.SteamAppInfos.ToListAsync(cancellationToken);
+        int done = 0;
+        int failures = 0;
+        report(done, rows.Count);
+
+        foreach (SteamAppInfo[] batch in rows.Chunk(PriceBatchSize))
+        {
+            try
+            {
+                IReadOnlyDictionary<long, SteamPrice> prices = await store.GetPricesAsync(batch.Select(r => r.AppId).ToList(), cancellationToken);
+                DateTimeOffset now = clock.GetUtcNow();
+                foreach (SteamAppInfo row in batch.Where(r => prices.ContainsKey(r.AppId)))
+                {
+                    SteamPrice price = prices[row.AppId];
+                    ApplyPrice(row, price.Price, price.NormalPrice, price.Currency, price.DiscountPercent, now);
+                }
+
+                await db.SaveChangesAsync(cancellationToken);
+                failures = 0;
+            }
+            catch (SteamException exception)
+            {
+                logger.LogWarning(exception, "Could not refresh a batch of Steam prices.");
+                if (++failures >= MaxConsecutiveFailures)
+                {
+                    return false;
+                }
+            }
+
+            report(done += batch.Length, rows.Count);
+            if (delay > TimeSpan.Zero)
+            {
+                await Task.Delay(delay, cancellationToken);
+            }
+        }
+
+        return true;
+    }
+
+    private static void ApplyPrice(SteamAppInfo row, decimal? price, decimal? normalPrice, string currency, int discountPercent, DateTimeOffset now)
+    {
+        row.Price = price;
+        row.NormalPrice = normalPrice;
+        row.Currency = currency;
+        row.DiscountPercent = discountPercent;
+        row.PriceUpdatedAt = now;
+        if (price is > 0 && (row.LowestSeenPrice is null || price < row.LowestSeenPrice))
+        {
+            row.LowestSeenPrice = price;
+            row.LowestSeenAt = now;
+        }
+    }
+
     private async Task<IReadOnlyList<long>> FindPendingAsync(CancellationToken cancellationToken)
     {
         DateTimeOffset limit = clock.GetUtcNow() - Staleness;
@@ -66,10 +127,7 @@ public class SteamEnrichmentService(GamerDbContext db, ISteamStoreClient store, 
 
         if (info.Details is { } details)
         {
-            row.Price = details.Price;
-            row.NormalPrice = details.NormalPrice;
-            row.Currency = details.Currency;
-            row.DiscountPercent = details.DiscountPercent;
+            ApplyPrice(row, details.Price, details.NormalPrice, details.Currency, details.DiscountPercent, clock.GetUtcNow());
             row.Metacritic = details.Metacritic;
             row.Genres = string.Join(", ", details.Genres);
             row.ReleaseDate = details.ReleaseDate;

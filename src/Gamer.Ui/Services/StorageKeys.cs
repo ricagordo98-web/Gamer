@@ -7,4 +7,5 @@ public static class StorageKeys
     public const string ServerUrl = "gamer.server-url";
     public const string Theme = "gamer.theme";
     public const string NotifiedAlerts = "gamer.notified-alerts";
+    public const string HideOwned = "gamer.hide-owned";
 }

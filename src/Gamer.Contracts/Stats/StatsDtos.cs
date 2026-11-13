@@ -27,7 +27,8 @@ public record StatsDto(
     IReadOnlyList<StatsCountDto> Recency,
     IReadOnlyList<StatsCountDto> Tags,
     IReadOnlyList<StatsGameDto> BestRated,
-    IReadOnlyList<StatsGameDto> BestValue);
+    IReadOnlyList<StatsGameDto> BestValue,
+    DateTimeOffset? PricesUpdatedAt);
 
 public record StatsRowDto(
     long AppId,
@@ -41,7 +42,8 @@ public record StatsRowDto(
     int? ReviewPercent,
     int ReviewCount,
     int? Metacritic,
-    string Genres);
+    string Genres,
+    decimal? LowestPrice);
 
 public record SteamAppDetailDto(
     long AppId,
@@ -65,6 +67,9 @@ public record SteamAppDetailDto(
     int? AverageMinutes,
     decimal? LowestPrice,
     string? LowestPriceShop,
-    bool AtHistoricLow);
+    bool AtHistoricLow,
+    decimal? LowestSeenPrice,
+    DateTimeOffset? LowestSeenAt,
+    DateTimeOffset? PriceUpdatedAt);
 
 public record PlayersNowDto(long AppId, int? Players);

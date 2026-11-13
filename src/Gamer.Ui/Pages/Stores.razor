@@ -2,6 +2,7 @@
 @implements IDisposable
 @inject IGamerApi Api
 @inject ToastService Toasts
+@inject StorePreferences Preferences
 
 <ShopTabs />
 
@@ -121,6 +122,12 @@ else
         : "Ainda sem dados.";
 
     public void Dispose() => _disposed = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Preferences.EnsureLoadedAsync();
+        _hideOwned = Preferences.HideOwned;
+    }
 
     private CatalogQuery BuildQuery(int skip) => new(_store, _search, _onlySale, _hideOwned, _hideExtras, skip, PageSize);
 

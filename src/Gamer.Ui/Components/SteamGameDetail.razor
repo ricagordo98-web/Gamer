@@ -48,6 +48,10 @@
                             {
                                 <small>-@_detail.DiscountPercent% (normal @DealFormat.Money(_detail.NormalPrice ?? 0, _detail.Currency))</small>
                             }
+                            @if (_detail.PriceUpdatedAt is { } priceAt)
+                            {
+                                <small>atualizado @DealFormat.Ago(priceAt, DateTimeOffset.UtcNow)</small>
+                            }
                         </div>
                     }
                     @if (_detail.LowestPrice is not null)
@@ -56,6 +60,17 @@
                             <span>Mínimo histórico</span>
                             <strong>@DealFormat.Money(_detail.LowestPrice.Value, _detail.Currency)</strong>
                             <small>@(_detail.AtHistoricLow ? "O preço atual é o mais baixo de sempre" : _detail.LowestPriceShop)</small>
+                        </div>
+                    }
+                    @if (_detail.LowestSeenPrice is not null)
+                    {
+                        <div class="detail-cell">
+                            <span>Mais baixo registado pela app</span>
+                            <strong>@DealFormat.Money(_detail.LowestSeenPrice.Value, _detail.Currency)</strong>
+                            @if (_detail.LowestSeenAt is { } seenAt)
+                            {
+                                <small>@DealFormat.Ago(seenAt, DateTimeOffset.UtcNow)</small>
+                            }
                         </div>
                     }
                     @if (_detail.Owners is not null)

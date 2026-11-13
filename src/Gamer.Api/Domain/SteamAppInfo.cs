@@ -18,5 +18,8 @@ public class SteamAppInfo
     public int? AverageMinutes { get; set; }
     public decimal? LowestPrice { get; set; }
     public string? LowestPriceShop { get; set; }
+    public decimal? LowestSeenPrice { get; set; }
+    public DateTimeOffset? LowestSeenAt { get; set; }
+    public DateTimeOffset? PriceUpdatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
 }

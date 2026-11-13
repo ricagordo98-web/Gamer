@@ -17,11 +17,17 @@
                 <NavLink class="nav-item" href="" Match="NavLinkMatch.All"><Icon Name="dashboard" /> Painel</NavLink>
                 <NavLink class="nav-item" href="games"><Icon Name="games" /> Biblioteca</NavLink>
                 <NavLink class="nav-item" href="random"><Icon Name="dice" /> Sorteio</NavLink>
+
+                <span class="nav-group">Steam</span>
                 <NavLink class="nav-item" href="stats"><Icon Name="chart" /> Estatísticas</NavLink>
                 <NavLink class="nav-item" href="friends"><Icon Name="users" /> Amigos</NavLink>
 
                 <span class="nav-group">Comprar</span>
-                <NavLink class="@("nav-item " + ShopClass)" href="promotions"><Icon Name="store" /> Loja @CartBadge</NavLink>
+                <NavLink class="nav-item" href="promotions"><Icon Name="tag" /> Promoções</NavLink>
+                <NavLink class="nav-item" href="stores"><Icon Name="store" /> Lojas e bundles</NavLink>
+                <NavLink class="nav-item" href="deals"><Icon Name="scale" /> Comparar preços</NavLink>
+                <NavLink class="nav-item" href="wishlist"><Icon Name="heart" /> Wishlist</NavLink>
+                <NavLink class="nav-item" href="cart"><Icon Name="cart" /> Carrinho @CartBadge</NavLink>
 
                 <span class="nav-group">Sistema</span>
                 <NavLink class="nav-item" href="settings"><Icon Name="settings" /> Definições</NavLink>
@@ -33,21 +39,43 @@
         <nav class="tabbar">
             <NavLink class="tab" href="" Match="NavLinkMatch.All"><Icon Name="dashboard" Size="22" /><span>Painel</span></NavLink>
             <NavLink class="tab" href="games"><Icon Name="games" Size="22" /><span>Biblioteca</span></NavLink>
-            <NavLink class="tab" href="random"><Icon Name="dice" Size="22" /><span>Sorteio</span></NavLink>
             <NavLink class="tab" href="stats"><Icon Name="chart" Size="22" /><span>Stats</span></NavLink>
-            <NavLink class="tab" href="friends"><Icon Name="users" Size="22" /><span>Amigos</span></NavLink>
             <NavLink class="@("tab " + ShopClass)" href="promotions"><Icon Name="store" Size="22" /><span>Loja</span>@CartBadge</NavLink>
-            <NavLink class="tab" href="settings"><Icon Name="settings" Size="22" /><span>Definições</span></NavLink>
+            <button type="button" class="@("tab " + MoreClass)" @onclick="() => _moreOpen = true"><Icon Name="more" Size="22" /><span>Mais</span></button>
         </nav>
+
+        @if (_moreOpen)
+        {
+            <div class="overlay" @onclick="() => _moreOpen = false">
+                <div class="sheet more-sheet" role="dialog" aria-modal="true" @onclick:stopPropagation="true">
+                    <div class="sheet-header">
+                        <h2>Mais</h2>
+                        <button type="button" class="icon-btn" @onclick="() => _moreOpen = false" aria-label="Fechar"><Icon Name="x" /></button>
+                    </div>
+                    <nav class="more-grid">
+                        <NavLink class="more-item" href="random"><Icon Name="dice" Size="26" /><strong>Sorteio</strong><small>Deixa a sorte escolher</small></NavLink>
+                        <NavLink class="more-item" href="friends"><Icon Name="users" Size="26" /><strong>Amigos</strong><small>O que andam a jogar</small></NavLink>
+                        <NavLink class="more-item" href="settings"><Icon Name="settings" Size="26" /><strong>Definições</strong><small>Steam, lojas e sessão</small></NavLink>
+                    </nav>
+                </div>
+            </div>
+        }
     </div>
 }
 
 @code {
     private static readonly string[] ShopRoutes = ["promotions", "stores", "deals", "wishlist", "steam", "cart"];
 
+    private static readonly string[] MoreRoutes = ["random", "friends", "settings"];
+
     private bool _ready;
+    private bool _moreOpen;
 
     private string ShopClass => IsShopRoute() ? "shop-active" : string.Empty;
+
+    private string MoreClass => MoreRoutes.Contains(CurrentPath(), StringComparer.OrdinalIgnoreCase) ? "shop-active" : string.Empty;
+
+    private string CurrentPath() => Navigation.ToBaseRelativePath(Navigation.Uri).Split('?', '#')[0].Trim('/');
 
     private bool IsShopRoute()
     {
@@ -55,7 +83,11 @@
         return ShopRoutes.Contains(path, StringComparer.OrdinalIgnoreCase);
     }
 
-    private void OnLocationChanged(object? sender, LocationChangedEventArgs e) => InvokeAsync(StateHasChanged);
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        _moreOpen = false;
+        InvokeAsync(StateHasChanged);
+    }
 
     protected override async Task OnInitializedAsync()
     {

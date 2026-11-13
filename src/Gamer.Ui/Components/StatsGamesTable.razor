@@ -37,6 +37,7 @@ else
                     <th class="num"><button @onclick='() => SortBy("recent")'>2 sem. @Arrow("recent")</button></th>
                     <th class="num"><button @onclick='() => SortBy("last")'>Última vez @Arrow("last")</button></th>
                     <th class="num"><button @onclick='() => SortBy("price")'>Preço @Arrow("price")</button></th>
+                    <th class="num" title="Preço mais baixo conhecido (IsThereAnyDeal ou registado pela app)"><button @onclick='() => SortBy("low")'>Mais baixo @Arrow("low")</button></th>
                     <th class="num"><button @onclick='() => SortBy("perhour")'>Custo/h @Arrow("perhour")</button></th>
                     <th class="num"><button @onclick='() => SortBy("reviews")'>Reviews @Arrow("reviews")</button></th>
                     <th class="num"><button @onclick='() => SortBy("meta")'>Meta @Arrow("meta")</button></th>
@@ -51,6 +52,7 @@ else
                         <td class="num">@(row.RecentMinutes == 0 ? string.Empty : StatsFormat.Hours(row.RecentMinutes))</td>
                         <td class="num">@(row.LastPlayedAt is null ? string.Empty : DealFormat.Ago(row.LastPlayedAt.Value, DateTimeOffset.UtcNow))</td>
                         <td class="num">@PriceText(row)</td>
+                        <td class="num">@LowestText(row)</td>
                         <td class="num">@PerHourText(row)</td>
                         <td class="num">@(row.ReviewPercent is null ? string.Empty : row.ReviewPercent + "%")</td>
                         <td class="num">@row.Metacritic</td>
@@ -127,6 +129,9 @@ else
     private string PriceText(StatsRowDto row) =>
         row.Price is null ? string.Empty : row.Price == 0 ? "Grátis" : DealFormat.Money(row.Price.Value, Currency) + (row.DiscountPercent > 0 ? $" (-{row.DiscountPercent}%)" : string.Empty);
 
+    private string LowestText(StatsRowDto row) =>
+        row.LowestPrice is { } low ? DealFormat.Money(low, Currency) : string.Empty;
+
     private string PerHourText(StatsRowDto row) =>
         PerHour(row) is { } value ? DealFormat.Money((decimal)value, Currency) : string.Empty;
 
@@ -157,6 +162,7 @@ else
             "recent" => r => r.RecentMinutes,
             "last" => r => r.LastPlayedAt,
             "price" => r => r.Price,
+            "low" => r => r.LowestPrice,
             "perhour" => r => PerHour(r),
             "reviews" => r => r.ReviewPercent,
             "meta" => r => r.Metacritic,

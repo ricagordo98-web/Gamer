@@ -5,6 +5,7 @@
 @inject GameLibrary Library
 @inject ToastService Toasts
 @inject ThemeService Theme
+@inject StorePreferences Preferences
 
 <header class="page-header"><h1>Definições</h1></header>
 
@@ -20,6 +21,15 @@
             </button>
         }
     </div>
+</section>
+
+<section class="card form">
+    <h3>Promoções e lojas</h3>
+    <p class="muted">Esconde das promoções e das lojas os jogos que já tens (Steam e restante biblioteca). Fica guardado neste dispositivo; em cada página continuas a poder ligar ou desligar o filtro.</p>
+    <label class="store-toggle">
+        <input type="checkbox" checked="@Preferences.HideOwned" @onchange="OnHideOwnedChanged" />
+        <strong>Não mostrar jogos que já tenho</strong>
+    </label>
 </section>
 
 <section class="card form">
@@ -113,8 +123,11 @@
         public bool IsEnabled { get; set; } = store.IsEnabled;
     }
 
+    private Task OnHideOwnedChanged(ChangeEventArgs args) => Preferences.SetHideOwnedAsync(args.Value is true);
+
     protected override async Task OnInitializedAsync()
     {
+        await Preferences.EnsureLoadedAsync();
         _serverUrl = await Server.GetBaseUrlAsync();
         try
         {

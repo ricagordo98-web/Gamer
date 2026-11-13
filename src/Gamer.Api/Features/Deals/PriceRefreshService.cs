@@ -1,3 +1,4 @@
+using Gamer.Api.Features.Stats;
 using Gamer.Api.Features.Steam;
 
 namespace Gamer.Api.Features.Deals;
@@ -18,6 +19,10 @@ public class PriceRefreshService(IServiceScopeFactory scopes, RefreshCoordinator
                 await using AsyncServiceScope scope = scopes.CreateAsyncScope();
                 hours = await scope.ServiceProvider.GetRequiredService<ISteamSettingsService>().GetRefreshHoursAsync(stoppingToken);
                 coordinator.TryStart(hours > 0 ? RefreshScope.All : RefreshScope.Stores);
+                if (hours > 0)
+                {
+                    scope.ServiceProvider.GetRequiredService<SteamEnrichmentRunner>().TryStart();
+                }
             }
             catch (Exception exception) when (exception is not OperationCanceledException)
             {

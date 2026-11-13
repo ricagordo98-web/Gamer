@@ -184,6 +184,68 @@ public sealed class StatsTests : IClassFixture<GamerApiFactory>
     }
 
     [Fact]
+    public void ParsePrices_ReadsEveryAppWithAPrice()
+    {
+        using JsonDocument document = JsonDocument.Parse("""
+            {"1":{"success":true,"data":{"price_overview":{"currency":"EUR","initial":2000,"final":500,"discount_percent":75}}},
+             "2":{"success":true,"data":[]},
+             "3":{"success":false}}
+            """);
+
+        Dictionary<long, SteamPrice> prices = SteamStoreClient.ParsePrices(document.RootElement);
+
+        prices.Should().ContainSingle().Which.Should().Be(new KeyValuePair<long, SteamPrice>(1, new SteamPrice(5m, 20m, "EUR", 75)));
+    }
+
+    [Fact]
+    public async Task Run_RefreshesPricesAndKeepsTheLowestSeen()
+    {
+        using TestDatabase database = new();
+        using GamerDbContext db = database.CreateContext();
+        db.SteamLibrary.Add(new SteamLibraryItem { AppId = 1, Title = "Game" });
+        db.SteamAppInfos.Add(new SteamAppInfo { AppId = 1, Price = 10m, NormalPrice = 20m, Currency = "EUR", LowestSeenPrice = 8m, UpdatedAt = DateTimeOffset.UtcNow });
+        await db.SaveChangesAsync();
+        ISteamStoreClient store = Substitute.For<ISteamStoreClient>();
+        ISteamSettingsService settings = Substitute.For<ISteamSettingsService>();
+        SteamEnrichmentService service = new(db, store, Substitute.For<IHistoricLowClient>(), settings, TimeProvider.System, NullLogger<SteamEnrichmentService>.Instance);
+
+        store.GetPricesAsync(Arg.Any<IReadOnlyCollection<long>>(), Arg.Any<CancellationToken>()).Returns(new Dictionary<long, SteamPrice> { [1] = new(12m, 20m, "EUR", 40) });
+        await service.RunAsync(TimeSpan.Zero, (_, _) => { }, CancellationToken.None);
+        SteamAppInfo afterRise = db.SteamAppInfos.Single();
+
+        afterRise.Price.Should().Be(12m);
+        afterRise.DiscountPercent.Should().Be(40);
+        afterRise.LowestSeenPrice.Should().Be(8m);
+        afterRise.PriceUpdatedAt.Should().NotBeNull();
+
+        store.GetPricesAsync(Arg.Any<IReadOnlyCollection<long>>(), Arg.Any<CancellationToken>()).Returns(new Dictionary<long, SteamPrice> { [1] = new(4m, 20m, "EUR", 80) });
+        await service.RunAsync(TimeSpan.Zero, (_, _) => { }, CancellationToken.None);
+
+        db.SteamAppInfos.Single().LowestSeenPrice.Should().Be(4m);
+        db.SteamAppInfos.Single().LowestSeenAt.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task Games_LowestPriceCombinesHistoricAndSeen()
+    {
+        using TestDatabase database = new();
+        using GamerDbContext db = database.CreateContext();
+        db.SteamLibrary.AddRange(
+            new SteamLibraryItem { AppId = 1, Title = "Both" },
+            new SteamLibraryItem { AppId = 2, Title = "OnlySeen" },
+            new SteamLibraryItem { AppId = 3, Title = "None" });
+        db.SteamAppInfos.AddRange(
+            new SteamAppInfo { AppId = 1, LowestPrice = 3m, LowestSeenPrice = 5m },
+            new SteamAppInfo { AppId = 2, LowestSeenPrice = 6m },
+            new SteamAppInfo { AppId = 3 });
+        await db.SaveChangesAsync();
+
+        IReadOnlyList<StatsRowDto> rows = await new StatsService(db, new SteamEnrichmentRunner(Substitute.For<IServiceScopeFactory>(), NullLogger<SteamEnrichmentRunner>.Instance), TimeProvider.System).GetGamesAsync(CancellationToken.None);
+
+        rows.Select(r => r.LowestPrice).Should().Equal(3m, null, 6m);
+    }
+
+    [Fact]
     public async Task Stats_BucketsRecencyTagsAndRankings()
     {
         using TestDatabase database = new();

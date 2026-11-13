@@ -7,16 +7,21 @@
 <header class="page-header">
     <h1>Estatísticas</h1>
     <div class="header-actions-inline">
-        <button class="btn" @onclick="EnrichAsync" disabled="@(_stats is null || _stats.Enrichment.Running)" title="Vai buscar avaliações, géneros, preços e tags de cada jogo Steam">
-            <Icon Name="refresh" Size="18" /> @(_stats?.Enrichment.Running == true ? "A atualizar fichas…" : "Atualizar fichas")
+        <button class="btn" @onclick="EnrichAsync" disabled="@(_stats is null || _stats.Enrichment.Running)" title="Atualiza os preços atuais de todos os jogos e vai buscar as fichas que faltam (avaliações, géneros, tags)">
+            <Icon Name="refresh" Size="18" /> @(_stats?.Enrichment.Running == true ? "A atualizar…" : "Atualizar preços e fichas")
         </button>
     </div>
 </header>
 
+@if (_stats is { SteamGames: > 0 })
+{
+    <p class="muted promo-updated">@(_stats.PricesUpdatedAt is { } updated ? $"Preços atualizados {DealFormat.Ago(updated, DateTimeOffset.UtcNow)}. Atualizam sozinhos ao ritmo definido nas Definições, ou à mão com o botão." : "Preços por atualizar: carrega em \"Atualizar preços e fichas\".")</p>
+}
+
 @if (_stats?.Enrichment.Running == true)
 {
     <div class="card enrich-progress">
-        <span>A ir buscar as fichas dos jogos: @_stats.Enrichment.Done de @_stats.Enrichment.Total</span>
+        <span>A atualizar preços e fichas: @_stats.Enrichment.Done de @_stats.Enrichment.Total</span>
         <div class="bar-track"><div class="bar-fill" style="--fam:var(--accent);width:@(_stats.Enrichment.Total == 0 ? 0 : 100 * _stats.Enrichment.Done / _stats.Enrichment.Total)%"></div></div>
     </div>
 }

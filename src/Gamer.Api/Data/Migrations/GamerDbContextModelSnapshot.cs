@@ -436,6 +436,12 @@ namespace Gamer.Api.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTimeOffset?>("LowestSeenAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal?>("LowestSeenPrice")
+                        .HasColumnType("TEXT");
+
                     b.Property<int?>("Metacritic")
                         .HasColumnType("INTEGER");
 
@@ -447,6 +453,9 @@ namespace Gamer.Api.Data.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<decimal?>("Price")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("PriceUpdatedAt")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("ReleaseDate")
